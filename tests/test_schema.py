@@ -47,7 +47,8 @@ SEED_COUNTS = {
 }
 
 FK_COLUMN_TABLES = {
-    "bps_upload":   {"id_ms_period": "ms_period", "uploaded_by": "app_users"},
+    "bps_upload":   {"id_ms_period": "ms_period", "periode_mulai": "ms_period",
+                     "periode_akhir": "ms_period", "uploaded_by": "app_users"},
     "bps_export_raw": {"id_bps_upload": "bps_upload"},
     "bps_import_raw": {"id_bps_upload": "bps_upload"},
     "bps_export": {"id_bps_export_raw": "bps_export_raw", "id_ms_period": "ms_period",
@@ -166,7 +167,7 @@ def main():
 
     cur.execute("SELECT DISTINCT status FROM raw_exim WHERE status IS NOT NULL")
     raw_statuses = {r[0] for r in cur.fetchall()}
-    if raw_statuses <= {"draft", "uploaded", "validated", "processed", "failed", "archived"}:
+    if raw_statuses <= {"ready", "needs_validation", "rejected"}:
         ok(f"raw_exim.status valid: {raw_statuses}")
     else:
         fail(f"raw_exim.status invalid: {raw_statuses}")

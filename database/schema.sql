@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS ms_hscode (
     kategori_tuna     VARCHAR(30)     NULL,
     prioritas_ekspor_utama VARCHAR(150) NULL,
     prioritas_impor_utama VARCHAR(150) NULL,
-    kode_kelompok     VARCHAR(2)      NULL,
+    kode_kelompok     VARCHAR(3)      NULL,
     status_transaksi_riil VARCHAR(40)  NULL,
     kode_hs_2017_prev VARCHAR(10)     NULL,
     is_active         TINYINT(1)      NOT NULL DEFAULT 1,
@@ -323,7 +323,9 @@ CREATE TABLE IF NOT EXISTS ms_manual_correction (
 CREATE TABLE IF NOT EXISTS bps_upload (
     id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     exim_type     ENUM('ekspor','impor') NOT NULL,
-    id_ms_period  BIGINT UNSIGNED NOT NULL,
+    id_ms_period  BIGINT UNSIGNED NULL,
+    periode_mulai BIGINT UNSIGNED NULL,
+    periode_akhir BIGINT UNSIGNED NULL,
     nama_file     VARCHAR(255)    NOT NULL,
     file_path     VARCHAR(1000)   NULL,
     file_hash     CHAR(64)        NOT NULL,
@@ -338,6 +340,10 @@ CREATE TABLE IF NOT EXISTS bps_upload (
     KEY idx_bps_upload_period_type (id_ms_period, exim_type),
     KEY idx_bps_upload_user (uploaded_by),
     CONSTRAINT fk_bps_upload_period FOREIGN KEY (id_ms_period)
+        REFERENCES ms_period (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_bps_upload_periode_mulai FOREIGN KEY (periode_mulai)
+        REFERENCES ms_period (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_bps_upload_periode_akhir FOREIGN KEY (periode_akhir)
         REFERENCES ms_period (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_bps_upload_user FOREIGN KEY (uploaded_by)
         REFERENCES app_users (id) ON DELETE SET NULL ON UPDATE CASCADE
@@ -598,7 +604,7 @@ CREATE TABLE IF NOT EXISTS raw_exim (
     rendemen                  DECIMAL(12,6)   NULL,
     setara_segar              DECIMAL(20,4)   NULL,
     moda                      VARCHAR(20)     NULL,
-    koding                    VARCHAR(2)      NULL,
+    koding                    VARCHAR(3)      NULL,
     tahun_bulan               VARCHAR(10)     NULL,
     kurs_usd                  DECIMAL(18,4)   NULL,
     nilai_rp                  DECIMAL(24,2)   NULL,

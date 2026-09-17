@@ -423,10 +423,12 @@ def main():
          "Verified 4114/4114 baris Juni 2026 (bukan vol*rendemen).", "audit RAW EXIM", "validated"),
         ("raw_exim", "harga", "nil_usd / vol_kg",
          "Verified 0 mismatch pada file Juni 2026.", "audit RAW EXIM", "validated"),
-        ("raw_exim", "kurs_juni_2026", "358482 (KONSTAN, bukan kurs riil)",
-         "Temuan audit: nilai mirip 'placeholder', bukan kurs JISDOR (~15800).", "audit RAW EXIM", "needs_validation"),
+        ("raw_exim", "kurs_juni_2026", "358482 (placeholder, BUKAN kurs riil)",
+         "File referensi memakai 358482 konstan; nilai riil harus dari JISDOR BI per bulan (berbeda tiap bulan).",
+         "audit RAW EXIM + konfirmasi user", "needs_validation"),
         ("raw_exim", "nilai_rp", "nil_usd * kurs_usd",
-         "Formula mengikuti file; akurasi tergantung sumber kurs.", "audit RAW EXIM", "needs_validation"),
+         "Formula verified 1:1 vs file; kurs_usd harus dari ms_kurs (JISDOR BI per bulan).",
+         "audit RAW EXIM + konfirmasi user", "needs_validation"),
         ("raw_exim", "moda_inkonsisten", "Moda sangat tergantung master_pelabuhan; 10/58 pelabuhan punya 2 moda, 2 sel #N/A",
          "Temuan audit: cek master pelabuhan saat pipeline.", "audit RAW EXIM", "needs_validation"),
         ("raw_exim", "kolom_null_510", "510 baris EXIM & KELOMPOK NEGARA NULL (komoditas non-inti)",
@@ -435,8 +437,9 @@ def main():
          "TL resmi anggota ASEAN 2025; master belum ter-update.", "audit RAW EXIM", "needs_validation"),
         ("raw_exim", "kode_hs_2012", "KOSONG di seluruh file ekspor 2026-06",
          "Kolom cadangan; tidak dipakai pipeline saat ini.", "audit RAW EXIM", "validated"),
-        ("kurs", "sumber", "JISDOR Bank Indonesia",
-         "Tabel ms_kurs adalah sumber kurs per periode.", "eksim_system legacy + audit", "validated"),
+        ("kurs", "sumber", "JISDOR Bank Indonesia (website BI)", 
+         "Kurs resmi per periode diambil dari kurs JISDOR di website Bank Indonesia; nilai berbeda tiap bulan.",
+         "konfirmasi user", "validated"),
         ("analytics", "market_share", "NEEDS VALIDATION",
          "Formula share ekspor/global belum resmi dikonfirmasi.", None, "needs_validation"),
         ("analytics", "potensi_ekspor", "NEEDS VALIDATION",
@@ -545,6 +548,48 @@ def main():
         ],
         body,
     )
+
+    # ---- 011 ms_kurs ----------------------------------------------------------------
+    # Sumber resmi: kurs JISDOR website Bank Indonesia, PER BULAN (nilai berbeda tiap
+    # bulan). File RAW EXIM hanya memuat nilai KONSTAN 358482 utk verifikasi 1:1;
+    # nilai tsb BUKAN kurs riil -> ditandai placeholder/needs_validation.
+    # Utk periode lain: isi manual dari JISDOR via database/scripts/import_jisdor.py.
+    if os.path.exists(RAW):
+        wbr = load_workbook(RAW, data_only=True, read_only=True)
+        rr = list(wbr["Sheet1"].iter_rows(values_only=True))
+        hr = list(rr[0])
+        ti = hr.index("Tahun - Bulan")
+        ki = hr.index("Kurs (USD)")
+        seen_kurs = {}
+        for r in rr[1:]:
+            tb, kv = r[ti], r[ki]
+            if tb is None or kv is None:
+                continue
+            tb = int(tb)
+            seen_kurs[(tb // 100, tb % 100)] = kv
+        rows = []
+        for (y, m), kv in sorted(seen_kurs.items()):
+            rows.append(f"ROW({y}, {m}, {sql_decimal(kv)})")
+        body = (
+            "INSERT IGNORE INTO ms_kurs (id_ms_period, rata_rata_kurs, sumber, keterangan)\n"
+            "SELECT p.id, s.kurs, 'referensi file RAW EXIM (placeholder)',\n"
+            "       'KONSTAN dari file referensi; BUKAN kurs JISDOR riil; NEEDS VALIDATION'\n"
+            "FROM (\n  SELECT * FROM (VALUES\n"
+            + ",\n".join(rows)
+            + "\n  ) AS v(tahun, bulan, kurs)\n"
+            ") s\n"
+            "JOIN ms_period p ON p.tahun = s.tahun AND p.bulan = s.bulan;\n"
+        )
+        write(
+            "011_ms_kurs.sql",
+            [
+                "ms_kurs: kurs per periode dari file RAW EXIM (referensi verifikasi).",
+                "Nilai KONSTAN 358482 = placeholder, bukan JISDOR; status needs_validation.",
+            ],
+            body,
+        )
+    else:
+        print("  RAW EXIM file tidak ditemukan, ms_kurs dilewati.")
 
     print("\nSeeds generated into", SEEDS)
 

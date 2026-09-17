@@ -26,7 +26,7 @@ MySQL 8.0.33 | InnoDB | utf8mb4_unicode_ci | 31 tabel | Seed + Migration based
 
 | Tabel | Deskripsi |
 |-------|-----------|
-| `bps_upload` | Metadata upload file BPS (per periode per user) |
+| `bps_upload` | Metadata upload file BPS (per file; `periode_mulai`/`periode_akhir` utk file multi-periode) |
 | `bps_export_raw` | Baris mentah ekspor (belum validated) |
 | `bps_import_raw` | Baris mentah impor (belum validated) |
 | `bps_export` | Grain ekspor valid (period+HS+prov+pel+negara+vol+nilai) |
@@ -130,6 +130,7 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 | `008_ms_komoditas_hscode.sql` | 3725 bridge | computed |
 | `009_ms_reference.sql` | 19 formula/metrik | Hardcoded (NEEDS VALIDATION) |
 | `010_app_roles_permissions.sql` | 3 roles + 28 permissions + 64 mappings | Hardcoded |
+| `011_ms_kurs.sql` | Kurs per periode dari file RAW EXIM | Referensi verifikasi |
 
 ---
 
@@ -138,9 +139,9 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 | Item | Status | Catatan |
 |------|--------|---------|
 | Formula Setara Segar | Verified 100% | `VOL / Rendemen` (bukan `*`) |
-| Kurs JISDOR | Verified konstan per periode | Tabel `ms_kurs` kosong, diisi manual |
+| Kurs JISDOR | Verified: JISDOR BI per bulan | `ms_kurs` via `import_jisdor.py`; 2026-06=358482 hanya placeholder verifikasi |
 | `raw_exim.status` enum | Diperluas dari 'ready' | Sebelumnya hanya 'needs_validation'/'rejected' |
-| `bps_export_raw` / `bps_import_raw` | Ready, belum ada data | Data di-load via PHASE 2 |
+| `bps_export_raw` / `bps_import_raw` | Ready, ETL PHASE 2 | 189.001 + 53.668 baris, valid 100% |
 | `ms_komoditas` bridge coverage | 3725 rows | Multi-sumber: 6 versi kolom |
 | `ms_reference` sumber | NEEDS VALIDATION | Beberapa formula belum dikonfirmasi user |
 | `app_users` seed | Tidak ada seed default | User registrasi via PHASE 3+ |
