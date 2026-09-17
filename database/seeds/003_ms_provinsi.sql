@@ -1,0 +1,45 @@
+-- ==================================================================
+-- ms_provinsi: 38 baris dari master_exim_reference (sheet ms_provinsi).
+-- Idempotent (INSERT IGNORE).
+-- ==================================================================
+USE kkp_exim_platform;
+
+INSERT IGNORE INTO ms_provinsi (kode_provinsi, nama_provinsi, pulau) VALUES
+('11', 'Aceh', 'Sumatera'),
+('12', 'Sumatera Utara', 'Sumatera'),
+('13', 'Sumatera Barat', 'Sumatera'),
+('14', 'Riau', 'Sumatera'),
+('15', 'Jambi', 'Sumatera'),
+('16', 'Sumatera Selatan', 'Sumatera'),
+('17', 'Bengkulu', 'Sumatera'),
+('18', 'Lampung', 'Sumatera'),
+('19', 'Kepulauan Bangka Belitung', 'Sumatera'),
+('21', 'Kepulauan Riau', 'Sumatera'),
+('31', 'DKI Jakarta', 'Jawa'),
+('32', 'Jawa Barat', 'Jawa'),
+('33', 'Jawa Tengah', 'Jawa'),
+('34', 'Daerah Istimewa Yogyakarta', 'Jawa'),
+('35', 'Jawa Timur', 'Jawa'),
+('36', 'Banten', 'Jawa'),
+('51', 'Bali', 'Bali-Nusa Tenggara'),
+('52', 'Nusa Tenggara Barat', 'Bali-Nusa Tenggara'),
+('53', 'Nusa Tenggara Timur', 'Bali-Nusa Tenggara'),
+('61', 'Kalimantan Barat', 'Kalimantan'),
+('62', 'Kalimantan Tengah', 'Kalimantan'),
+('63', 'Kalimantan Selatan', 'Kalimantan'),
+('64', 'Kalimantan Timur', 'Kalimantan'),
+('65', 'Kalimantan Utara', 'Kalimantan'),
+('71', 'Sulawesi Utara', 'Sulawesi'),
+('72', 'Sulawesi Tengah', 'Sulawesi'),
+('73', 'Sulawesi Selatan', 'Sulawesi'),
+('74', 'Sulawesi Tenggara', 'Sulawesi'),
+('75', 'Gorontalo', 'Sulawesi'),
+('76', 'Sulawesi Barat', 'Sulawesi'),
+('81', 'Maluku', 'Maluku-Papua'),
+('82', 'Maluku Utara', 'Maluku-Papua'),
+('91', 'Papua', 'Maluku-Papua'),
+('92', 'Papua Barat', 'Maluku-Papua'),
+('93', 'Papua Selatan', 'Maluku-Papua'),
+('94', 'Papua Tengah', 'Maluku-Papua'),
+('95', 'Papua Pegunungan', 'Maluku-Papua'),
+('96', 'Papua Barat Daya', 'Maluku-Papua');
