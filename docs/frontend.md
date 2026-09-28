@@ -75,9 +75,11 @@ Header: `Authorization: Bearer <token>`.
   per negara (share dalam regional).
 - `/diagnostik` **Analisis Diagnostik** — HHI, CR5 komoditas, CR3 negara,
   Pareto 80% (dari data riil BPS).
-- `/potensi` **Potensi Ekspor - `/prediktif` **Analisis Prediktif** — proyeksi tren nilai bulananamp; Pangsa Pasar** — momentum pasar (6 bulan
+- `/potensi` **Potensi Ekspor &amp; Pangsa Pasar** — momentum pasar (6 bulan
   vs 6 bulan sebelumnya, BPS riil) + komoditas momentum + snapshot TradeMap
-  (pangsa mitra dalam data yang tersedia).
+  (pangsa mitra dalam data yang tersedia), dan prospek/hambatan pasar.
+- `/dossier` **Dossier Pasar 360°** — profil per negara: tren ekspor RI
+  per tahun, YoY, share RI, top komoditas ekspor/impor, neraca per tahun.
 - `/prediktif` **Analisis Prediktif** — proyeksi tren nilai bulanan
   (linear, naive, MA-3) hingga 12 bulan; filter komoditas/negara/periode.
 - `/bilateral` **Intelijen Bilateral** — pilih negara mitra → neraca dagang

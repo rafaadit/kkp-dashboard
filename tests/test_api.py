@@ -196,6 +196,20 @@ def main():
     check("potensi share ~100",
           abs(sum(p["share_persen"] for p in d["trademap"]["per_partner"]) - 100) < 1)
 
+    print("== explore/dossier ==")
+    r = c.get("/api/explore/dossier?negara=US", headers=H)
+    check("dossier 200", r.status_code == 200)
+    d = r.get_json()
+    check("dossier profil", d["profil"]["kode_negara"] == "US")
+    check("dossier ekspor per_tahun > 1", len(d["ekspor"]["per_tahun"]) > 1)
+    check("dossier total_usd >0", d["ekspor"]["total_usd"] > 0)
+    check("dossier yoy atau share hadir", d["ekspor"]["yoy"] is not None or d["ekspor"]["share_ri"] is not None)
+    check("dossier neraca konsisten",
+          all(r["neraca"] == round((r["ekspor"] or 0) - (r["impor"] or 0), 2) or r["neraca"] is None for r in d["neraca"]))
+    check("dossier top komoditas", len(d["ekspor"]["top_komoditas"]) > 0 and len(d["impor"]["top_komoditas"]) > 0)
+    check("dossier tanpa negara 400", c.get("/api/explore/dossier", headers=H).status_code == 400)
+    check("dossier negara tak ada 400", c.get("/api/explore/dossier?negara=ZZ", headers=H).status_code == 400)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

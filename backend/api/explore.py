@@ -643,6 +643,82 @@ def _pos2ym(pos):
     return pos // 12, pos % 12 + 1
 
 
+@explore_bp.get("/dossier")
+@require_perm("explore.view")
+def dossier():
+    """Dossier pasar 360°: profil negara + kedudukan RI (ekspor/impor/neraca)."""
+    kode = (request.args.get("negara") or "").strip().upper()
+    if not kode:
+        raise ApiError("'negara' wajib diisi")
+    info = _row(
+        "SELECT r.kode_negara, r.negara, r.kelompok_negara FROM raw_exim r "
+        "WHERE r.kode_negara=%s AND NULLIF(r.negara,'') IS NOT NULL LIMIT 1",
+        [kode],
+    )
+    if not info:
+        raise ApiError(f"negara '{kode}' tidak ditemukan")
+
+    def per_tahun(exim):
+        return _row(
+            "SELECT r.tahun AS tahun, COUNT(*) AS baris, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            "FROM raw_exim r WHERE r.exim_type=%s AND r.kode_negara=%s "
+            "GROUP BY r.tahun ORDER BY r.tahun",
+            [exim, kode],
+        )
+
+    def top_comms(exim, n=8):
+        return _row(
+            "SELECT NULLIF(r.komoditas_5_2026,'') AS komoditas, COUNT(*) AS baris, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            "FROM raw_exim r WHERE r.exim_type=%s AND r.kode_negara=%s "
+            "AND NULLIF(r.komoditas_5_2026,'') IS NOT NULL "
+            "GROUP BY NULLIF(r.komoditas_5_2026,'') ORDER BY nilai_usd DESC LIMIT %s",
+            [exim, kode, n],
+        )
+
+    def total_ri(year, exim):
+        return _row(
+            "SELECT COALESCE(SUM(nil_usd),0) AS total FROM raw_exim "
+            "WHERE exim_type=%s AND tahun=%s",
+            [exim, year],
+        )[0]["total"] or 0
+
+    pe = per_tahun("ekspor")
+    pi = per_tahun("impor")
+    tahun_lengkap = [t for t in pe if t["tahun"] and t["tahun"] < 2026] or pe
+    yoy = None
+    if len(pe) >= 2:
+        last, prev = pe[-1], pe[-2]
+        yoy = round((last["nilai_usd"] - prev["nilai_usd"]) / prev["nilai_usd"] * 100, 2) if prev["nilai_usd"] else None
+
+    year_pop = pe[-1]["tahun"] if pe else None
+    share_ri = None
+    if year_pop:
+        total = total_ri(year_pop, "ekspor")
+        if total:
+            share_ri = round(pe[-1]["nilai_usd"] / total * 100, 2)
+
+    e_map = {t["tahun"]: t["nilai_usd"] for t in pe}
+    i_map = {t["tahun"]: t["nilai_usd"] for t in pi}
+    neraca = [{
+        "tahun": y,
+        "ekspor": e_map.get(y),
+        "impor": i_map.get(y),
+        "neraca": round((e_map.get(y) or 0) - (i_map.get(y) or 0), 2)
+        if y in e_map and y in i_map else None,
+    } for y in sorted(set(e_map) | set(i_map))]
+
+    return jsonify({
+        "profil": info[0],
+        "ekspor": {"per_tahun": pe, "top_komoditas": top_comms("ekspor"), "total_usd": round(sum(t["nilai_usd"] for t in pe), 2), "yoy": yoy, "share_ri": share_ri},
+        "impor": {"per_tahun": pi, "top_komoditas": top_comms("impor"), "total_usd": round(sum(t["nilai_usd"] for t in pi), 2)},
+        "neraca": neraca,
+    })
+
+
 @explore_bp.get("/potensi")
 @require_perm("explore.view")
 def potensi():

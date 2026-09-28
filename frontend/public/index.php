@@ -93,6 +93,9 @@ try {
         case '/potensi':
             $view = 'potensi';
             break;
+        case '/dossier':
+            $view = 'dossier';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;
