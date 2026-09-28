@@ -70,30 +70,12 @@ Header: `Authorization: Bearer <token>`.
   2 negara: KPI nilai/volume/share/harga, top komoditas per negara, tren
   nilai per periode, dan selisih A − B. Form: exim, negara A/B (dropdown dari
   `/api/explore/negara_list`), rentang periode.
-- `/regional` **Analisis Regional** — ringkasan kelompok negara
-  (`kelompok_negara`) + share nilai; pilih regional → detail KPI + breakdown
-  per negara (share dalam regional).
-- `/diagnostik` **Analisis Diagnostik** — HHI, CR5 komoditas, CR3 negara,
-  Pareto 80% (dari data riil BPS).
 - `/potensi` **Potensi Ekspor &amp; Pangsa Pasar** — momentum pasar (6 bulan
   vs 6 bulan sebelumnya, BPS riil) + komoditas momentum + snapshot TradeMap
   (pangsa mitra dalam data yang tersedia), dan prospek/hambatan pasar.
 - `/kompetitor` **Profil Kompetitor &amp; Lanskap Persaingan** — scaffold jujur:
   cakupan TradeMap yang ada (mitra ekspor RI, per produk/tahun) + daftar data
   dibutuhkan (impor dunia per penjual — butuh TRADEMAP_API_KEY).
-- `/ntm` **Hambatan Non-Tarif (NTM/SPS)** — scaffold kategorisasi (SPS, fiskal,
-  karantina, pelabelan, lisensi) dengan status "belum ada data" sampai sumber
-  FAO SPS / UNCTAD TRAINS tersambung.
-- `/preskriptif` **Analisis Preskriptif** — rekomendasi rule-based dari data
-  BPS riil (momentum pasar, CR3, HHI/CR5, pasar menurun): pertahankan, ekspansi,
-  diversifikasi pasar/produk, evaluasi — dengan target & alasan berbasis angka.
-- `/dossier` **Dossier Pasar 360°** — profil per negara: tren ekspor RI
-  per tahun, YoY, share RI, top komoditas ekspor/impor, neraca per tahun.
-- `/prediktif` **Analisis Prediktif** — proyeksi tren nilai bulanan
-  (linear, naive, MA-3) hingga 12 bulan; filter komoditas/negara/periode.
-- `/bilateral` **Intelijen Bilateral** — pilih negara mitra → neraca dagang
-  RI (ekspor−impor), top komoditas ekspor & impor, neraca per periode
-  (opsional filter komoditas & periode).
 - `/perbandingan` Dua tab: **Periode (BPS)** — pertumbuhan % nilai & volume
   2 periode; **BPS vs TradeMap** — form flow/tahun/komoditas/negara,
   tabel berdampingan (endpoint `/api/trademap/banding`), KPI + catatan cakupan

@@ -101,32 +101,11 @@ try {
         case '/compare':
             $view = 'compare';
             break;
-        case '/regional':
-            $view = 'regional';
-            break;
-        case '/bilateral':
-            $view = 'bilateral';
-            break;
-        case '/diagnostik':
-            $view = 'diagnostik';
-            break;
-        case '/prediktif':
-            $view = 'prediktif';
-            break;
         case '/potensi':
             $view = 'potensi';
             break;
-        case '/dossier':
-            $view = 'dossier';
-            break;
-        case '/preskriptif':
-            $view = 'preskriptif';
-            break;
         case '/kompetitor':
             $view = 'kompetitor';
-            break;
-        case '/ntm':
-            $view = 'ntm';
             break;
         case '/trademap':
             $view = 'trademap';

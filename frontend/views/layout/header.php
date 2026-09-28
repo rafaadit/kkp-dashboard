@@ -46,15 +46,8 @@ if ($session !== null && $session->isLoggedIn()) {
         <a href="/negara" class="<?= $active === '/negara' ? 'on' : ''; ?>">Negara</a>
         <a href="/provinsi" class="<?= $active === '/provinsi' ? 'on' : ''; ?>">Provinsi Asal</a>
         <a href="/compare" class="<?= $active === '/compare' ? 'on' : ''; ?>">Banding Negara</a>
-        <a href="/regional" class="<?= $active === '/regional' ? 'on' : ''; ?>">Analisis Regional</a>
-        <a href="/bilateral" class="<?= $active === '/bilateral' ? 'on' : ''; ?>">Intelijen Bilateral</a>
-        <a href="/diagnostik" class="<?= $active === '/diagnostik' ? 'on' : ''; ?>">Diagnostik</a>
-        <a href="/prediktif" class="<?= $active === '/prediktif' ? 'on' : ''; ?>">Prediktif</a>
         <a href="/potensi" class="<?= $active === '/potensi' ? 'on' : ''; ?>">Potensi &amp; Pangsa</a>
-        <a href="/dossier" class="<?= $active === '/dossier' ? 'on' : ''; ?>">Dossier Pasar</a>
-        <a href="/preskriptif" class="<?= $active === '/preskriptif' ? 'on' : ''; ?>">Preskriptif</a>
         <a href="/kompetitor" class="<?= $active === '/kompetitor' ? 'on' : ''; ?>">Kompetitor</a>
-        <a href="/ntm" class="<?= $active === '/ntm' ? 'on' : ''; ?>">NTM / SPS</a>
         <a href="/perbandingan" class="<?= $active === '/perbandingan' ? 'on' : ''; ?>">Perbandingan</a>
         <a href="/trademap" class="<?= $active === '/trademap' ? 'on' : ''; ?>">TradeMap</a>
         <a href="/laporan" class="<?= $active === '/laporan' ? 'on' : ''; ?>">Laporan PPT</a>
