@@ -136,6 +136,27 @@ def komoditas():
     return jsonify({"limit": limit, "total_nilai_usd": total, "komoditas": rows})
 
 
+@explore_bp.get("/komoditas_list")
+@require_perm("explore.view")
+def komoditas_list():
+    """Daftar komoditas_5_2026 unik (urut A-Z) + jumlah baris, untuk navigasi sidebar."""
+    exim = parse_exim(request)
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT komoditas_5_2026 AS komoditas, COUNT(*) AS baris "
+            "FROM raw_exim "
+            "WHERE exim_type=%s AND NULLIF(komoditas_5_2026,'') IS NOT NULL "
+            "GROUP BY komoditas_5_2026 ORDER BY komoditas_5_2026",
+            (exim,),
+        )
+        rows = [row_to_dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+    return jsonify({"jenis": "komoditas_list", "komoditas": rows})
+
+
 @explore_bp.get("/negara")
 @require_perm("explore.country")
 def negara():

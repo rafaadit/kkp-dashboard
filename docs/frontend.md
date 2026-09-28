@@ -60,6 +60,7 @@ Header: `Authorization: Bearer <token>`.
 
 - `/` Dashboard: KPI total (nilai USD, volume, setara segar, baris/HS/negara),
   tabel per-bulan, breakdown kelompok koding I–IV. Filter exim + rentang periode.
+  Mendukung deep-link `/dashboard?komoditas=<nama>` (misal dari sidebar).
 - `/komoditas` Top komoditas_5_2026 (volume, nilai, harga/kg, share %).
 - `/negara` Top negara tujuan/asal + kelompok negara.
 - `/perbandingan` Dua tab: **Periode (BPS)** — pertumbuhan % nilai & volume
@@ -78,3 +79,14 @@ Header: `Authorization: Bearer <token>`.
 Catatan: token sesi disimpan cookie; setiap permintaan ditambahkan
 `Authorization` oleh `ApiClient`. Semua angka diformat dengan
 `\KKP\View::num()`; semua output HTML di-escape `\KKP\View::e()`.
+
+## Layout (PHASE 5.1 — sidebar navigasi)
+
+- Sidebar (`layout/header.php`) berisi: brand, kotak pencarian komoditas,
+  menu halaman, daftar komoditas (urut A-Z, render server-side dari
+  `/api/explore/komoditas_list`), user + logout.
+- Klik komoditas → `/dashboard?komoditas=<nama>` (dashboard terfilter).
+- Pencarian mem-filter daftar komoditas klien-side (tanpa reload).
+- Mobile (< 920px): sidebar off-canvas, tombol hamburger di topbar.
+- Topbar menampilkan judul halaman + sumber data
+  (PDSPKP KKP · BPS · ITC TradeMap).

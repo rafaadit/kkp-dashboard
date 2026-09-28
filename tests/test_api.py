@@ -80,6 +80,18 @@ def main():
     check("komoditas rate desc", d["komoditas"][0]["nilai_usd"] >= d["komoditas"][1]["nilai_usd"])
     check("share in 0..100", 0 <= d["komoditas"][0]["share_nilai_persen"] <= 100)
 
+    print("== explore/komoditas_list (sidebar) ==")
+    r = c.get("/api/explore/komoditas_list?exim=ekspor", headers=H)
+    check("komoditas_list 200", r.status_code == 200)
+    d = r.get_json()
+    kl = d["komoditas"]
+    check("komoditas_list > 50 item", len(kl) > 50, str(len(kl)))
+    check("komoditas_list sorted A-Z",
+          all(kl[i]["komoditas"] <= kl[i + 1]["komoditas"] for i in range(len(kl) - 1)))
+    check("komoditas_list ada Udang",
+          any(k["komoditas"].lower() == "udang" for k in kl))
+    check("komoditas_list punya baris>0", all(k["baris"] > 0 for k in kl))
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

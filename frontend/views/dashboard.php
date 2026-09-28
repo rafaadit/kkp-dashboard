@@ -2,9 +2,11 @@
 $exim = $_GET['exim'] ?? 'ekspor';
 $mulai = $_GET['mulai'] ?? '';
 $akhir = $_GET['akhir'] ?? '';
+$komoditas = trim($_GET['komoditas'] ?? '');
 $query = ['exim' => $exim];
 if ($mulai) { $query['mulai'] = $mulai; }
 if ($akhir) { $query['akhir'] = $akhir; }
+if ($komoditas !== '') { $query['komoditas'] = $komoditas; }
 try {
     $api = $session->api();
     [$st, $ov] = $api->get('/api/explore/overview?' . http_build_query($query));
@@ -14,6 +16,11 @@ try {
     $ov = null;
 }
 ?>
+<?php if ($komoditas !== ''): ?>
+<p class="muted">Fokus komoditas: <strong><?= \KKP\View::e($komoditas); ?></strong>
+    <a href="?exim=<?= \KKP\View::e($exim); ?>">hapus filter</a></p>
+<?php endif; ?>
+
 <h1>Dashboard Ekspor/Impor</h1>
 <form class="filters" method="get">
     <select name="exim">
@@ -22,6 +29,7 @@ try {
     </select>
     <input type="month" name="mulai" value="<?= \KKP\View::e($mulai); ?>" title="Periode awal">
     <input type="month" name="akhir" value="<?= \KKP\View::e($akhir); ?>" title="Periode akhir">
+    <?php if ($komoditas !== ''): ?><input type="hidden" name="komoditas" value="<?= \KKP\View::e($komoditas); ?>"><?php endif; ?>
     <button class="btn btn-primary" type="submit">Tampilkan</button>
 </form>
 
