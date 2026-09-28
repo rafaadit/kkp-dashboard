@@ -138,6 +138,27 @@ def exec_summary():
     })
 
 
+@report_bp.get("/preview")
+@require_perm("report.view")
+def preview():
+    """Data infografis laporan eksekutif untuk periode terpilih (11 slide deck)."""
+    tahun, b1, b2 = _parse_periode()
+    from backend.report.template_fill import collect_data
+
+    conn = get_connection()
+    try:
+        data = collect_data(conn, tahun, b1, b2)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "message": str(e),
+                        "tahun": tahun, "bulan_awal": b1, "bulan_akhir": b2})
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    return jsonify({"ok": True, "data": data})
+
+
 @report_bp.get("/list")
 @require_perm("report.view")
 def list_reports():
