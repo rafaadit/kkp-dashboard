@@ -170,17 +170,16 @@ def main():
     check("browse total==4114", d["total"] == 4114, str(d["total"]))
     check("browse len==2", len(d["rows"]) == 2)
     check("browse pages 2057", d["pages"] == 2057)
-    check("browse col lookup hadir", all(
-        k in d["rows"][0] for k in
-        {"kode_hs_2dg", "komoditas_1_2017", "komoditas_2_2017", "bentuk_1",
-         "jenis", "provinsi_asal", "pulau_prov_asal", "provinsi_pelabuhan",
-         "pulau_prov_pelabuhan", "kelompok_negara", "ttc", "rendemen",
-         "setara_segar", "koding", "kurs_usd", "nilai_rp", "komoditas_5_2026",
-         "bentuk_3_2026", "status"}))
     row0 = d["rows"][0]
-    check("browse lookup terisi (bukan BPS doang)",
-          (row0.get("provinsi_asal") or row0.get("komoditas_1_2017")
-           or row0.get("kelompok_negara")) is not None)
+    check("browse kolom tunggal & terisi (1 per dimensi)", all(
+        (row0.get(k) not in (None, "")) for k in
+        {"kode_hs", "komoditas", "jenis", "bentuk", "pengolahan",
+         "provinsi_asal", "pulau_prov_asal", "kelompok_negara", "koding", "status"}))
+    check("browse tak ada kolom tumpukan revisi", all(
+        k not in row0 for k in
+        {"komoditas_1_2017", "komoditas_2_2017", "komoditas_4_2024", "komoditas_5_2026",
+         "bentuk_1", "bentuk_2", "bentuk_3_2026", "bentuk_4_2026", "bentuk_5_2026",
+         "jenis_2_2026", "uraian_2", "uraian_id_en_2_2026"}))
     r = c.get("/api/data/raw_exim?exim=impor&mulai=2026-06&limit=1", headers=H)
     check("browse impor total==1624", r.get_json()["total"] == 1624)
 

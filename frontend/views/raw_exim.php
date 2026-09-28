@@ -44,12 +44,10 @@ try {
 <table class="tbl tbl-wide">
     <thead><tr>
         <th>ID</th><th>Status</th><th>Exim</th><th>Periode</th>
-        <th>HS 2022</th><th>HS 2dg</th><th>Komoditas 5_2026</th>
-        <th>Komoditas 1_2017</th><th>Komoditas 2_2017</th><th>Komoditas 4_2024</th>
-        <th>Bentuk 1</th><th>Bentuk 2</th><th>Jenis</th>
-        <th>Bentuk 3_2026</th><th>Bentuk 4_2026</th><th>Jenis 2_2026</th><th>Bentuk 5_2026</th>
-        <th>Uraian</th><th>Uraian EN</th><th>Uraian ID/EN 2_2026</th>
-        <th>Non/Konsumsi</th><th>Olahan/N</th><th>Asal Bahan Baku</th>
+        <th>HS</th><th>HS 2dg</th>
+        <th>Komoditas</th><th>Jenis</th><th>Bentuk</th><th>Bentuk (EN)</th><th>Pengolahan</th>
+        <th>Uraian</th>
+        <th>Konsumsi/K</th><th>Olahan</th><th>Asal Bahan Baku</th>
         <th>Kode Prov Asal</th><th>Provinsi Asal</th><th>Pulau Prov Asal</th>
         <th>Kode Pelabuhan</th><th>Pelabuhan Muat/Bongkar</th><th>Moda</th>
         <th>Kode Prov Pelabuhan</th><th>Provinsi Pelabuhan</th><th>Pulau Prov Pelabuhan</th>
@@ -65,22 +63,14 @@ try {
             <td><span class="badge <?= ($r['status'] ?? '') === 'ready' ? 'ok' : 'warn'; ?>"><?= \KKP\View::e($r['status'] ?? '-'); ?></span></td>
             <td><?= \KKP\View::e($r['exim_type']); ?></td>
             <td><?= \KKP\View::e($r['periode']); ?></td>
-            <td><?= \KKP\View::e($r['kode_hs_2022']); ?></td>
+            <td><?= \KKP\View::e($r['kode_hs']); ?></td>
             <td><?= \KKP\View::e($r['kode_hs_2dg']); ?></td>
-            <td><?= \KKP\View::e($r['komoditas_5_2026']); ?></td>
-            <td><?= \KKP\View::e($r['komoditas_1_2017']); ?></td>
-            <td><?= \KKP\View::e($r['komoditas_2_2017']); ?></td>
-            <td><?= \KKP\View::e($r['komoditas_4_2024']); ?></td>
-            <td><?= \KKP\View::e($r['bentuk_1']); ?></td>
-            <td><?= \KKP\View::e($r['bentuk_2']); ?></td>
+            <td><?= \KKP\View::e($r['komoditas']); ?></td>
             <td><?= \KKP\View::e($r['jenis']); ?></td>
-            <td><?= \KKP\View::e($r['bentuk_3_2026']); ?></td>
-            <td><?= \KKP\View::e($r['bentuk_4_2026']); ?></td>
-            <td><?= \KKP\View::e($r['jenis_2_2026']); ?></td>
-            <td><?= \KKP\View::e($r['bentuk_5_2026']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk_en']); ?></td>
+            <td><?= \KKP\View::e($r['pengolahan']); ?></td>
             <td><?= \KKP\View::e($r['uraian']); ?></td>
-            <td><?= \KKP\View::e($r['uraian_2']); ?></td>
-            <td><?= \KKP\View::e($r['uraian_id_en_2_2026']); ?></td>
             <td><?= \KKP\View::e($r['non_konsumsi_konsumsi']); ?></td>
             <td><?= \KKP\View::e($r['olahan_bukan']); ?></td>
             <td><?= \KKP\View::e($r['asalbahanbaku']); ?></td>
