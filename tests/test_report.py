@@ -43,9 +43,32 @@ def main():
         prs = Presentation(d["file"])
         check("PPT 11 slide", len(prs.slides) == 11, str(len(prs.slides)))
         jenis = sum(1 for s in prs.slides for sh in s.shapes if sh.has_chart)
-        tabel = sum(1 for s in prs.slides for sh in s.shapes if sh.has_table)
         check("PPT punya chart", jenis >= 3, str(jenis))
-        check("PPT punya tabel", tabel >= 5, str(tabel))
+        check("PPT tanpa tabel (template flat)", all(not sh.has_table for s in prs.slides for sh in s.shapes))
+        import re as _re
+
+        def _texts(slide):
+            out = []
+            def _w(shapes):
+                for sh in shapes:
+                    if sh.has_text_frame:
+                        out.append("\n".join(p.text for p in sh.text_frame.paragraphs))
+                    if sh.shape_type == 6:
+                        _w(sh.shapes)
+            _w(slide.shapes)
+            return out
+
+        s1 = _texts(prs.slides[1])
+        s8 = _texts(prs.slides[8])
+        check("slide1 langkah nilai+YoY", any(_re.match(r"^USD \d+,\d+ Miliar$", t) for t in s1),
+              [t for t in s1 if "Miliar" in t])
+        check("slide1 YoY terisi", any(_re.match(r"^\d+,\d+% \(YoY\)$", t) for t in s1))
+        ch1 = next(sh.chart for sh in prs.slides[1].shapes if sh.has_chart)
+        check("slide1 chart 5 kategori s/d 2026",
+              list(ch1.plots[0].categories)[-1:] == ["2026"] and len(ch1.plots[0].categories) == 5,
+              str(list(ch1.plots[0].categories)))
+        check("slide8 TOTAL IMPOR terisi", any("TOTAL IMPOR" in t and "JUTA" in t for t in s8),
+              [t for t in s8 if "TOTAL IMPOR" in t])
 
     print("== validasi job tercatat ==")
     conn = get_connection()

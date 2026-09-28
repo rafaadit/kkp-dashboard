@@ -62,7 +62,11 @@ Header: `Authorization: Bearer <token>`.
   tabel per-bulan, breakdown kelompok koding I–IV. Filter exim + rentang periode.
 - `/komoditas` Top komoditas_5_2026 (volume, nilai, harga/kg, share %).
 - `/negara` Top negara tujuan/asal + kelompok negara.
-- `/perbandingan` Perbandingan 2 periode (pertumbuhan % nilai & volume).
+- `/perbandingan` Dua tab: **Periode (BPS)** — pertumbuhan % nilai & volume
+  2 periode; **BPS vs TradeMap** — form flow/tahun/komoditas/negara,
+  tabel berdampingan (endpoint `/api/trademap/banding`), KPI + catatan cakupan
+  (sumber tetap terpisah, tidak digabung).
+- `/trademap` Browse TradeMap (KPI, top partner/produk, pagination).
 - `/data` Browse RAW EXIM (pagination, filter status/periode/komoditas).
 - `/login`, `/logout`.
 

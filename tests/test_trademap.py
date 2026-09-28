@@ -43,7 +43,7 @@ def main():
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) n FROM trademap_trade")
     n_trade = cur.fetchone()["n"]
-    cur.execute("SELECT COUNT(*) n FROM trademap_raw WHERE status='validated'")
+    cur.execute("SELECT COUNT(*) n FROM trademap_raw WHERE status IN ('validated','processed')")
     n_raw = cur.fetchone()["n"]
     cur.execute("SELECT COUNT(*) n FROM trademap_trade WHERE id_trademap_raw IS NULL")
     n_orphan = cur.fetchone()["n"]
@@ -77,6 +77,20 @@ def main():
     check("rows total 8", d["total"] == 8)
     check("rows len 3", len(d["rows"]) == 3)
     check("rows punya value_usd", all("value_usd" in x for x in d["rows"]))
+
+    print("== API /api/trademap/banding (BPS vs TradeMap) ==")
+    r = c.get("/api/trademap/banding?flow=ekspor&tahun=2023&komoditas=Udang", headers=H)
+    check("banding 200", r.status_code == 200, r.get_data(as_text=True)[:150])
+    d = r.get_json()
+    check("banding punya blok bps+trademap", "bps" in d and "trademap" in d and "banding_komoditas" in d)
+    check("banding catatan sumber terpisah", any("terpisah" in k for k in d["catatan"]), str(d["catatan"]))
+    check("banding nilai bps>0", float(d["bps"]["nilai_usd"]) > 0, str(d["bps"]["nilai_usd"]))
+    check("banding pasangan Udang", any(b["komoditas"] == "Udang" and float(b["trademap_nilai_usd"]) > 0
+                                        for b in d["banding_komoditas"]), str(d["banding_komoditas"][:2]))
+    check("banding per_komoditas tm berisi nama", all("komoditas" in x for x in d["trademap"]["per_komoditas"]))
+    check("banding tanpa kunci 400", c.get("/api/trademap/banding?flow=ekspor", headers=H).status_code == 400)
+    check("banding tanpa token 401", c.get("/api/trademap/banding?flow=ekspor&komoditas=Udang").status_code == 401)
+    check("banding flow salah 400", c.get("/api/trademap/banding?flow=ngawur&komoditas=Udang", headers=H).status_code == 400)
 
     print("== proteksi ==")
     check("summary tanpa token 401", c.get("/api/trademap/summary").status_code == 401)

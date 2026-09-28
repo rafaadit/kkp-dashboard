@@ -1,6 +1,6 @@
 # Database Architecture — `kkp_exim_platform`
 
-MySQL 8.0.33 | InnoDB | utf8mb4_unicode_ci | 31 tabel | Seed + Migration based
+MySQL 8.0.33 | InnoDB | utf8mb4_unicode_ci | 33 tabel | Seed + Migration based
 
 ---
 
@@ -51,8 +51,10 @@ MySQL 8.0.33 | InnoDB | utf8mb4_unicode_ci | 31 tabel | Seed + Migration based
 
 | Tabel | Deskripsi |
 |-------|-----------|
-| `trademap_raw` | File mentah ITC TradeMap |
-| `trademap_trade` | Data perdagangan terproses (reporter/partner/flow/product/year) |
+| `trademap_raw` | File mentah ITC TradeMap + metadata sumber & statistik processing |
+| `trademap_trade` | Data terproses (mapping negara/HS/komoditas, flow_norm, validasi, value_usd_norm) |
+| `trademap_hs_mapping` | Interface harmonisasi/versioning HS TradeMap → ms_hscode |
+| `trademap_validation_results` | Temuan validasi per field (source value + reason + rekomendasi) |
 
 ### Analytics & Audit
 
@@ -104,7 +106,7 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 | Decision | Rationale |
 |----------|-----------|
 | DB baru `kkp_exim_platform` (bukan `eksim_system`) | eksim_system = milik MI KKP lama, dibiarkan utuh |
-| 31 tabel (bukan 17 seperti eksim_system) | Lebih granular: bridge `ms_komoditas_hscode`, staging `bps_*_raw`, audit logs, notifications |
+| 33 tabel (bukan 17 seperti eksim_system) | Lebih granular: bridge `ms_komoditas_hscode`, staging `bps_*_raw`, audit logs, notifications |
 | `raw_exim` = 46 kolom | Verified 1:1 dari file Raw_Eksim_Expor.xlsx + exim_type + BPS FK + status |
 | `ms_kurs` per periode (bukan per hari) | Kurs JISDOR dikonfirmasi konstan per periode dari eksim_system |
 | Grain `bps_export` = 8 kolom | Verified 0 duplikat 189.001 baris ekspor |
@@ -150,7 +152,8 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 
 ## Migration
 
-Basis: `migrations/0001_initial.sql` (copy dari `schema.sql`)
+Basis: `migrations/0001_initial.sql` (copy dari `schema.sql`);
+`migrations/0002_trademap_processing.sql` (PHASE 9: kolom/lineage/harmonisasi TradeMap).
 
 Jalankan inisialisasi:
 ```bash

@@ -65,6 +65,7 @@ foreach ([
     '/laporan' => '<h1>Laporan PPT</h1>',
     '/asisten' => '<h1>Asisten AI</h1>',
     '/perbandingan' => '<h1>Perbandingan Periode</h1>',
+    '/perbandingan?mode=banding&b_flow=ekspor&b_tahun=2023&b_komoditas=Udang' => 'BPS vs TradeMap',
     '/data?limit=5' => '<h1>Data RAW EXIM</h1>',
     '/data?exim=impor&limit=2&status=needs_validation' => 'needs_validation',
 ] as $path => $needle) {

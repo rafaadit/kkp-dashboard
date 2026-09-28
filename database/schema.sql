@@ -640,40 +640,131 @@ CREATE TABLE IF NOT EXISTS raw_exim (
 CREATE TABLE IF NOT EXISTS trademap_raw (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_download_log  BIGINT UNSIGNED NULL,
+    id_job           BIGINT UNSIGNED NULL,
+    source           VARCHAR(255)    NULL,
     file_path        VARCHAR(1000)   NULL,
+    file_name        VARCHAR(255)    NULL,
+    file_format      VARCHAR(20)     NULL,
     file_hash        CHAR(64)        NULL,
     row_count        INT UNSIGNED    NULL,
+    period_label     VARCHAR(50)     NULL,
+    reporter_scope   VARCHAR(50)     NULL,
+    partner_scope    VARCHAR(50)     NULL,
+    commodity_scope  VARCHAR(150)    NULL,
+    flow_scope       VARCHAR(20)     NULL,
+    total_rows       INT UNSIGNED    NULL,
+    valid_rows       INT UNSIGNED    NULL,
+    warning_rows     INT UNSIGNED    NULL,
+    invalid_rows     INT UNSIGNED    NULL,
+    duplicate_rows   INT UNSIGNED    NULL,
+    mapped_rows      INT UNSIGNED    NULL,
+    unmapped_rows    INT UNSIGNED    NULL,
     payload_json     JSON            NULL,
     status           ENUM('raw','validated','processed','failed') NOT NULL DEFAULT 'raw',
     validation_error TEXT            NULL,
+    processed_at     TIMESTAMP       NULL,
     created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_trademap_raw_hash (file_hash),
     KEY idx_trademap_raw_dl (id_download_log),
+    KEY idx_trademap_raw_job (id_job),
     CONSTRAINT fk_trademap_raw_dl FOREIGN KEY (id_download_log)
-        REFERENCES automation_download_logs (id) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Data mentah TradeMap per file';
+        REFERENCES automation_download_logs (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_trademap_raw_job FOREIGN KEY (id_job)
+        REFERENCES automation_jobs (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Data mentah TradeMap per file + metadata sumber & statistik processing';
 
 CREATE TABLE IF NOT EXISTS trademap_trade (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     reporter        VARCHAR(10)     NOT NULL,
     partner         VARCHAR(10)     NULL,
+    id_ms_negara_reporter BIGINT UNSIGNED NULL,
+    id_ms_negara    BIGINT UNSIGNED NULL,
     flow            VARCHAR(20)     NOT NULL,
+    flow_norm       VARCHAR(20)     NULL,
     product_code    VARCHAR(20)     NOT NULL,
     product_desc    VARCHAR(500)    NULL,
+    id_ms_hscode    BIGINT UNSIGNED NULL,
+    id_ms_komoditas BIGINT UNSIGNED NULL,
+    hs_version      VARCHAR(20)     NULL,
+    hs_mapping_status ENUM('MAPPED','AMBIGUOUS','HS_MAPPING_REQUIRED','NOT_FOUND','NEEDS_VALIDATION')
+                    NOT NULL DEFAULT 'HS_MAPPING_REQUIRED',
     year            SMALLINT UNSIGNED NOT NULL,
     qty             DECIMAL(24,4)   NULL,
     qty_unit        VARCHAR(20)     NULL,
     value_usd       DECIMAL(24,4)   NULL,
+    value_unit_source VARCHAR(50)   NULL,
+    value_usd_norm  DECIMAL(24,4)   NULL,
+    validation_status ENUM('VALID','WARNING','INVALID') NOT NULL DEFAULT 'WARNING',
+    validation_notes VARCHAR(500)   NULL,
+    row_ref         VARCHAR(100)    NULL,
     id_trademap_raw BIGINT UNSIGNED NULL,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_trademap_trade (reporter, partner, flow, product_code, year, id_trademap_raw),
     KEY idx_trademap_product (product_code, year),
     KEY idx_trademap_partner (partner, year),
+    KEY idx_trademap_hscode (id_ms_hscode),
+    KEY idx_trademap_negara (id_ms_negara),
+    KEY idx_trademap_valid (validation_status),
     CONSTRAINT fk_trademap_trade_raw FOREIGN KEY (id_trademap_raw)
-        REFERENCES trademap_raw (id) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Data perdagangan TradeMap (ITC) terproses';
+        REFERENCES trademap_raw (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_trademap_trade_reporter FOREIGN KEY (id_ms_negara_reporter)
+        REFERENCES ms_negara (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_trademap_trade_negara FOREIGN KEY (id_ms_negara)
+        REFERENCES ms_negara (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_trademap_trade_hscode FOREIGN KEY (id_ms_hscode)
+        REFERENCES ms_hscode (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_trademap_trade_komoditas FOREIGN KEY (id_ms_komoditas)
+        REFERENCES ms_komoditas (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Data perdagangan TradeMap (ITC) terproses + mapping & validasi';
+
+CREATE TABLE IF NOT EXISTS trademap_hs_mapping (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    source_code      VARCHAR(20)     NOT NULL COMMENT 'HS code dari TradeMap (mis. 6 digit)',
+    source_version   VARCHAR(20)     NOT NULL DEFAULT '' COMMENT 'versi HS sumber; "" = belum diketahui',
+    ms_hscode_id     BIGINT UNSIGNED NULL COMMENT 'hasil resolusi kanonikal (NULL bila ambigu/belum ada)',
+    ms_komoditas_id  BIGINT UNSIGNED NULL COMMENT 'komoditas_5_2026 hasil resolusi',
+    mapping_status   ENUM('MAPPED','AMBIGUOUS','HS_MAPPING_REQUIRED','NOT_FOUND','NEEDS_VALIDATION')
+                     NOT NULL DEFAULT 'HS_MAPPING_REQUIRED',
+    candidate_count  INT UNSIGNED    NOT NULL DEFAULT 0,
+    candidates_json  JSON            NULL COMMENT 'daftar kandidat ms_hscode [{id,kode_hs,uraian_en}]',
+    notes            VARCHAR(500)    NULL,
+    sumber           VARCHAR(100)    NULL,
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_trademap_hs_mapping (source_code, source_version),
+    KEY idx_trademap_hs_map_status (mapping_status),
+    CONSTRAINT fk_thm_hscode FOREIGN KEY (ms_hscode_id)
+        REFERENCES ms_hscode (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_thm_komoditas FOREIGN KEY (ms_komoditas_id)
+        REFERENCES ms_komoditas (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Interface harmonisasi/versioning HS TradeMap -> ms_hscode (tanpa mengarang equivalence)';
+
+CREATE TABLE IF NOT EXISTS trademap_validation_results (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_job          BIGINT UNSIGNED NULL,
+    id_trademap_raw BIGINT UNSIGNED NULL,
+    row_ref         VARCHAR(100)    NULL COMMENT 'penanda baris sumber (mis. #3 atau reporter|partner|hs)',
+    field           VARCHAR(50)     NOT NULL,
+    kode            VARCHAR(50)     NULL COMMENT 'kode temuan (mis. COUNTRY_UNMAPPED)',
+    source_value    VARCHAR(255)    NULL,
+    severity        ENUM('WARNING','INVALID') NOT NULL DEFAULT 'WARNING',
+    reason          VARCHAR(500)    NULL,
+    recommended     VARCHAR(500)    NULL,
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_tvr_job (id_job),
+    KEY idx_tvr_raw (id_trademap_raw),
+    KEY idx_tvr_sev (severity),
+    CONSTRAINT fk_tvr_job FOREIGN KEY (id_job)
+        REFERENCES automation_jobs (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_tvr_raw FOREIGN KEY (id_trademap_raw)
+        REFERENCES trademap_raw (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Hasil validasi TradeMap per field (lineage: source value + reason + rekomendasi)';
 
 -- ============================================================================
 -- 8) ANALYTICS + AUDIT

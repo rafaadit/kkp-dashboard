@@ -37,6 +37,9 @@ h1 { font-size: 22px; margin: 4px 0 16px; }
 .alert-danger { background: #fdecea; color: var(--danger); border: 1px solid #f5c2c0; }
 
 .filters { display: flex; flex-wrap: wrap; gap: 10px; background: var(--card); padding: 14px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; }
+.tabs { display: flex; gap: 6px; margin: 0 0 18px; border-bottom: 1px solid var(--line); }
+.tabs a { padding: 8px 14px; border-radius: 8px 8px 0 0; color: var(--muted); border: 1px solid transparent; border-bottom: none; }
+.tabs a.on { background: var(--card); color: var(--brand); border-color: var(--line); font-weight: 600; }
 .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
 .filters input[type="number"] { width: 80px; }
 

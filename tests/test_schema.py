@@ -26,7 +26,7 @@ EXPECTED_TABLES = sorted([
     # exim
     "raw_exim",
     # trademap
-    "trademap_raw", "trademap_trade",
+    "trademap_raw", "trademap_trade", "trademap_hs_mapping", "trademap_validation_results",
     # analytics & logging
     "analytics_metric", "audit_logs",
 ])
@@ -68,8 +68,12 @@ FK_COLUMN_TABLES = {
     "app_notifications": {"app_user_id": "app_users"},
     "raw_exim": {"id_bps_export": "bps_export", "id_bps_import": "bps_import",
                  "id_generated_by_job": "automation_jobs", "id_ms_period": "ms_period"},
-    "trademap_raw": {"id_download_log": "automation_download_logs"},
-    "trademap_trade": {"id_trademap_raw": "trademap_raw"},
+    "trademap_raw": {"id_download_log": "automation_download_logs", "id_job": "automation_jobs"},
+    "trademap_trade": {"id_trademap_raw": "trademap_raw", "id_ms_negara_reporter": "ms_negara",
+                       "id_ms_negara": "ms_negara", "id_ms_hscode": "ms_hscode",
+                       "id_ms_komoditas": "ms_komoditas"},
+    "trademap_hs_mapping": {"ms_hscode_id": "ms_hscode", "ms_komoditas_id": "ms_komoditas"},
+    "trademap_validation_results": {"id_job": "automation_jobs", "id_trademap_raw": "trademap_raw"},
     "ms_kurs": {"id_ms_period": "ms_period", "input_by": "app_users"},
     "ms_manual_correction": {"created_by": "app_users"},
     "ms_komoditas_hscode": {"ms_komoditas_id": "ms_komoditas", "ms_hscode_id": "ms_hscode"},

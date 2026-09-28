@@ -1,10 +1,13 @@
+# -*- coding: utf-8 -*-
 """PHASE 6 — Endpoint TradeMap (ITC): ringkasan + browse trademap_trade."""
+import re
+
 from flask import Blueprint, jsonify, request
 
 from backend.db import get_connection
 from backend.api.auth import require_perm
 from backend.api.explore import _row
-from backend.api.helpers import require_limit, require_page, row_to_dict
+from backend.api.helpers import ApiError, require_limit, require_page, row_to_dict
 
 trademap_bp = Blueprint("trademap", __name__, url_prefix="/api/trademap")
 
@@ -90,3 +93,157 @@ def rows():
             conn.close()
         except Exception:
             pass
+
+
+_FLOW_TM = {"ekspor": "Export", "impor": "Import"}
+
+
+def _nk(s):
+    """Kunci pembanding nama (BPS <-> TradeMap) via normalisasi case/whitespace."""
+    return re.sub(r"\s+", " ", s or "").strip().upper()
+
+
+@trademap_bp.get("/banding")
+@require_perm("trademap.view")
+def banding():
+    """Bandingkan BPS (raw_exim) vs TradeMap (trademap_trade) SISI BERSEBELAHAN.
+
+    Kedua sumber DIBIARKAN terpisah (tidak digabung): BPS = data faktur Bea
+    Cukai/BPS (vol kg + nilai USD); TradeMap = data ITC/Comtrade nilai USD
+    ternormalisasi dari satuan sumber (mis. US$ thousand). Tabel "banding"
+    hanya memasangkan nilai masing-masing sumber pada kunci nama yang sama.
+    """
+    flow = (request.args.get("flow") or "ekspor").lower()
+    if flow not in _FLOW_TM:
+        raise ApiError("flow harus ekspor|impor")
+    tm_flow = _FLOW_TM[flow]
+
+    tahun = None
+    if request.args.get("tahun"):
+        tahun = int(request.args["tahun"])
+        if tahun < 1900 or tahun > 2100:
+            raise ApiError("tahun tidak valid")
+
+    komoditas = (request.args.get("komoditas") or "").strip()
+    negara = (request.args.get("negara") or "").strip()
+    if not komoditas and not negara:
+        raise ApiError("pilih minimal komoditas atau negara sebagai kunci banding")
+
+    # --- blok BPS (raw_exim) ---
+    bps_where = ["exim_type = %s"]
+    bps_params = [flow]
+    if tahun:
+        bps_where.append("tahun = %s")
+        bps_params.append(tahun)
+    if komoditas:
+        bps_where.append("komoditas_5_2026 LIKE %s")
+        bps_params.append(f"%{komoditas}%")
+    if negara:
+        bps_where.append("negara LIKE %s")
+        bps_params.append(f"%{negara}%")
+    bw = " AND ".join(bps_where)
+
+    bps_total = _row(
+        "SELECT COUNT(*) AS baris, COALESCE(SUM(vol_kg),0) AS volume_kg, "
+        f"COALESCE(SUM(nil_usd),0) AS nilai_usd FROM raw_exim WHERE {bw}",
+        bps_params,
+    )[0]
+    bps_komoditas = _row(
+        "SELECT komoditas_5_2026 AS komoditas, COALESCE(SUM(nil_usd),0) AS nilai_usd, "
+        "COALESCE(SUM(vol_kg),0) AS volume_kg "
+        f"FROM raw_exim WHERE {bw} GROUP BY komoditas_5_2026 "
+        "ORDER BY nilai_usd DESC LIMIT 12",
+        bps_params,
+    )
+    bps_negara = _row(
+        "SELECT negara, NULLIF(kelompok_negara,'') AS kelompok_negara, "
+        "COALESCE(SUM(nil_usd),0) AS nilai_usd, COALESCE(SUM(vol_kg),0) AS volume_kg "
+        f"FROM raw_exim WHERE {bw} GROUP BY negara, kelompok_negara "
+        "ORDER BY nilai_usd DESC LIMIT 15",
+        bps_params,
+    )
+
+    # --- blok TradeMap (trademap_trade) ---
+    tm_where = ["reporter = 'ID'", "flow = %s"]
+    tm_params = [tm_flow]
+    if tahun:
+        tm_where.append("year = %s")
+        tm_params.append(tahun)
+    if komoditas:
+        tm_where.append("(product_desc LIKE %s OR id_ms_komoditas IN "
+                        "(SELECT m.id FROM ms_komoditas m WHERE m.nama LIKE %s))")
+        tm_params += [f"%{komoditas}%", f"%{komoditas}%"]
+    if negara:
+        tm_where.append("(partner LIKE %s OR id_ms_negara IN "
+                        "(SELECT n.id FROM ms_negara n WHERE n.nama_negara LIKE %s))")
+        tm_params += [f"%{negara}%", f"%{negara}%"]
+    tw = " AND ".join(tm_where)
+
+    tm_total = _row(
+        "SELECT COUNT(*) AS baris, "
+        "COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
+        f"FROM trademap_trade WHERE {tw}",
+        tm_params,
+    )[0]
+    tm_komoditas = _row(
+        "SELECT m.nama AS komoditas, "
+        "COALESCE(SUM(COALESCE(tt.value_usd_norm, tt.value_usd)),0) AS nilai_usd "
+        f"FROM trademap_trade tt LEFT JOIN ms_komoditas m ON m.id = tt.id_ms_komoditas "
+        f"WHERE {tw} GROUP BY m.nama ORDER BY nilai_usd DESC LIMIT 12",
+        tm_params,
+    )
+    tm_negara = _row(
+        "SELECT n.nama_negara AS negara, "
+        "COALESCE(SUM(COALESCE(tt.value_usd_norm, tt.value_usd)),0) AS nilai_usd "
+        f"FROM trademap_trade tt LEFT JOIN ms_negara n ON n.id = tt.id_ms_negara "
+        f"WHERE {tw} GROUP BY n.nama_negara ORDER BY nilai_usd DESC LIMIT 15",
+        tm_params,
+    )
+
+    # --- pasangan sisi-ber-sisi (tanpa penggabungan nilai) ---
+    tm_k = {_nk(r["komoditas"]): r["nilai_usd"] for r in tm_komoditas}
+    banding_komoditas = []
+    for r in bps_komoditas:
+        tmv = tm_k.get(_nk(r["komoditas"]))
+        if tmv is None:
+            continue
+        banding_komoditas.append({
+            "komoditas": r["komoditas"],
+            "bps_nilai_usd": r["nilai_usd"],
+            "bps_volume_kg": r["volume_kg"],
+            "trademap_nilai_usd": tmv,
+            "rasio_trademap_bps": round(tmv / r["nilai_usd"], 4) if r["nilai_usd"] else None,
+        })
+    tm_n = {_nk(r["negara"]): r["nilai_usd"] for r in tm_negara}
+    banding_negara = []
+    for r in bps_negara:
+        tmv = tm_n.get(_nk(r["negara"]))
+        if tmv is None:
+            continue
+        banding_negara.append({
+            "negara": r["negara"],
+            "bps_nilai_usd": r["nilai_usd"],
+            "bps_volume_kg": r["volume_kg"],
+            "trademap_nilai_usd": tmv,
+            "rasio_trademap_bps": round(tmv / r["nilai_usd"], 4) if r["nilai_usd"] else None,
+        })
+
+    return jsonify({
+        "flow": flow,
+        "tahun": tahun,
+        "filter": {"komoditas": komoditas or None, "negara": negara or None},
+        "catatan": [
+            "BPS/Bea Cukai: data faktur ekspor-impor Indonesia (vol kg + nilai USD).",
+            "TradeMap (ITC/Comtrade): nilai USD ternormalisasi dari satuan sumber "
+            "(mis. US$ thousand); cakupan & metode berbeda dengan BPS.",
+            "Kedua sumber dijaga terpisah; tabel banding hanya menyandingkan nilai "
+            "masing-masing sumber yang nama kuncinya cocok.",
+        ],
+        "bps": {"nilai_usd": bps_total["nilai_usd"], "volume_kg": bps_total["volume_kg"],
+                "baris": bps_total["baris"],
+                "per_komoditas": bps_komoditas, "per_negara": bps_negara},
+        "trademap": {"nilai_usd": tm_total["nilai_usd"], "baris": tm_total["baris"],
+                     "per_komoditas": tm_komoditas, "per_negara": tm_negara},
+        "banding_komoditas": banding_komoditas,
+        "banding_negara": banding_negara,
+    })
