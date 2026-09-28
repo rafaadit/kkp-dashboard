@@ -50,6 +50,7 @@ if ($session !== null && $session->isLoggedIn()) {
         <a href="/bilateral" class="<?= $active === '/bilateral' ? 'on' : ''; ?>">Intelijen Bilateral</a>
         <a href="/diagnostik" class="<?= $active === '/diagnostik' ? 'on' : ''; ?>">Diagnostik</a>
         <a href="/prediktif" class="<?= $active === '/prediktif' ? 'on' : ''; ?>">Prediktif</a>
+        <a href="/potensi" class="<?= $active === '/potensi' ? 'on' : ''; ?>">Potensi &amp; Pangsa</a>
         <a href="/perbandingan" class="<?= $active === '/perbandingan' ? 'on' : ''; ?>">Perbandingan</a>
         <a href="/trademap" class="<?= $active === '/trademap' ? 'on' : ''; ?>">TradeMap</a>
         <a href="/laporan" class="<?= $active === '/laporan' ? 'on' : ''; ?>">Laporan PPT</a>

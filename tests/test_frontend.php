@@ -73,6 +73,7 @@ foreach ([
     '/diagnostik?exim=ekspor' => 'Pareto 80%',
     '/prediktif' => 'Analisis Prediktif',
     '/prediktif?exim=ekspor&horizon=6' => 'Proyeksi 6 Bulan',
+    '/potensi' => 'Potensi Ekspor &amp; Pangsa Pasar',
     '/trademap' => '<h1>TradeMap (ITC)</h1>',
     '/laporan' => '<h1>Laporan PPT</h1>',
     '/asisten' => '<h1>Asisten AI</h1>',

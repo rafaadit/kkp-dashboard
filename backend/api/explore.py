@@ -639,6 +639,112 @@ def prediktif():
     })
 
 
+def _pos2ym(pos):
+    return pos // 12, pos % 12 + 1
+
+
+@explore_bp.get("/potensi")
+@require_perm("explore.view")
+def potensi():
+    """Potensi ekspor/impor: momentum pasar 6-bulan terakhir (BPS riil)
+    + snapshot pangsa pasar dari data TradeMap yang tersedia."""
+    exim = parse_exim(request)
+    qmax = _row(
+        "SELECT tahun AS y, bulan AS m FROM raw_exim "
+        "WHERE exim_type=%s ORDER BY tahun DESC, bulan DESC LIMIT 1",
+        [exim],
+    )[0]
+    if not qmax["y"]:
+        return jsonify({"ref_periode": None, "top_market": [], "momentum": [], "trademap": None})
+
+    pos = qmax["y"] * 12 + (qmax["m"] - 1)
+    ref_start, ref_end = _pos2ym(pos - 5), _pos2ym(pos)
+    prev_start, prev_end = _pos2ym(pos - 11), _pos2ym(pos - 6)
+
+    def _win(ps, pe):
+        return _row(
+            "SELECT r.kode_negara, r.negara, COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            "FROM raw_exim r WHERE r.exim_type=%s "
+            "AND (r.tahun, r.bulan) >= (%s,%s) AND (r.tahun, r.bulan) <= (%s,%s) "
+            "GROUP BY r.kode_negara, r.negara",
+            [exim, ps[0], ps[1], pe[0], pe[1]],
+        )
+
+    def _win_comms(kode, ps, pe):
+        return _row(
+            "SELECT NULLIF(r.komoditas_5_2026,'') AS komoditas, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            "FROM raw_exim r WHERE r.exim_type=%s AND r.kode_negara=%s "
+            "AND (r.tahun, r.bulan) >= (%s,%s) AND (r.tahun, r.bulan) <= (%s,%s) "
+            "AND NULLIF(r.komoditas_5_2026,'') IS NOT NULL "
+            "GROUP BY NULLIF(r.komoditas_5_2026,'')",
+            [exim, kode, ps[0], ps[1], pe[0], pe[1]],
+        )
+
+    ref_rows = _win(ref_start, ref_end)
+    prev_map = {r["kode_negara"]: r["nilai_usd"] for r in _win(prev_start, prev_end)}
+
+    markets = []
+    for r in ref_rows:
+        pv = prev_map.get(r["kode_negara"])
+        markets.append({
+            "kode_negara": r["kode_negara"],
+            "negara": r["negara"],
+            "nilai_usd": r["nilai_usd"],
+            "prev_nilai_usd": pv,
+            "pertumbuhan_persen": round((r["nilai_usd"] - pv) / pv * 100, 2) if pv else None,
+        })
+    markets.sort(key=lambda x: x["nilai_usd"], reverse=True)
+    top_market = markets[:10]
+
+    momentum = [m for m in markets if m["pertumbuhan_persen"] is not None and (m["prev_nilai_usd"] or 0) >= 500_000]
+    momentum.sort(key=lambda x: x["pertumbuhan_persen"], reverse=True)
+    momentum = momentum[:10]
+    for m in momentum[:5]:
+        refc = _win_comms(m["kode_negara"], ref_start, ref_end)
+        prevc = {c["komoditas"]: c["nilai_usd"] for c in _win_comms(m["kode_negara"], prev_start, prev_end)}
+        kom = []
+        for c in refc:
+            pv = prevc.get(c["komoditas"])
+            g = round((c["nilai_usd"] - pv) / pv * 100, 2) if pv else None
+            if g is not None and g > 0 and (pv or 0) >= 100_000:
+                kom.append({
+                    "komoditas": c["komoditas"],
+                    "nilai_usd": c["nilai_usd"],
+                    "prev_nilai_usd": pv,
+                    "pertumbuhan_persen": g,
+                })
+        kom.sort(key=lambda x: x["pertumbuhan_persen"], reverse=True)
+        m["komoditas_momentum"] = kom[:5]
+
+    td_year = _row(
+        "SELECT year AS tahun, COUNT(*) AS baris, COALESCE(SUM(value_usd),0) AS nilai_usd "
+        "FROM trademap_trade WHERE reporter='ID' AND flow='Export' GROUP BY year ORDER BY year",
+        [],
+    )
+    td_partner = _row(
+        "SELECT t.partner, COALESCE(n.nama_negara, t.partner) AS nama_partner, "
+        "       COALESCE(SUM(t.value_usd),0) AS nilai_usd "
+        "FROM trademap_trade t LEFT JOIN ms_negara n ON n.kode_negara = t.partner "
+        "WHERE t.reporter='ID' AND t.flow='Export' "
+        "GROUP BY t.partner, n.nama_negara, t.partner ORDER BY nilai_usd DESC",
+        [],
+    )
+    total_td = sum(float(p["nilai_usd"]) for p in td_partner)
+    for p in td_partner:
+        p["share_persen"] = round(p["nilai_usd"] / total_td * 100, 2) if total_td else None
+
+    return jsonify({
+        "exim": exim,
+        "ref_periode": {"mulai": f"{ref_start[0]:04d}-{ref_start[1]:02d}", "akhir": f"{ref_end[0]:04d}-{ref_end[1]:02d}"},
+        "prev_periode": f"{prev_start[0]:04d}-{prev_start[1]:02d}..{prev_end[0]:04d}-{prev_end[1]:02d}",
+        "top_market": top_market,
+        "momentum": momentum,
+        "trademap": ({"per_tahun": td_year, "per_partner": td_partner, "total_usd": round(total_td, 2)}
+                     if td_year else None),
+    })
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

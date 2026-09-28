@@ -183,6 +183,19 @@ def main():
     check("prediktif nilai non-negatif", all(f["linear"] >= 0 for f in d["forecast"]))
     check("prediktif filter komoditas 200", c.get("/api/explore/prediktif?exim=ekspor&komoditas=Udang", headers=H).status_code == 200)
 
+    print("== explore/potensi ==")
+    r = c.get("/api/explore/potensi?exim=ekspor", headers=H)
+    check("potensi 200", r.status_code == 200)
+    d = r.get_json()
+    check("potensi ref_periode", d["ref_periode"]["mulai"] == "2026-01", str(d["ref_periode"]))
+    check("potensi top_market > 0", len(d["top_market"]) > 0)
+    check("potensi momentum naik semua > 0",
+          all(m["pertumbuhan_persen"] > 0 for m in d["momentum"]))
+    check("potensi trademap snapshot (fixture)",
+          d["trademap"] is not None and len(d["trademap"]["per_partner"]) > 0)
+    check("potensi share ~100",
+          abs(sum(p["share_persen"] for p in d["trademap"]["per_partner"]) - 100) < 1)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)
