@@ -48,6 +48,7 @@ if ($session !== null && $session->isLoggedIn()) {
         <a href="/compare" class="<?= $active === '/compare' ? 'on' : ''; ?>">Banding Negara</a>
         <a href="/regional" class="<?= $active === '/regional' ? 'on' : ''; ?>">Analisis Regional</a>
         <a href="/bilateral" class="<?= $active === '/bilateral' ? 'on' : ''; ?>">Intelijen Bilateral</a>
+        <a href="/diagnostik" class="<?= $active === '/diagnostik' ? 'on' : ''; ?>">Diagnostik</a>
         <a href="/perbandingan" class="<?= $active === '/perbandingan' ? 'on' : ''; ?>">Perbandingan</a>
         <a href="/trademap" class="<?= $active === '/trademap' ? 'on' : ''; ?>">TradeMap</a>
         <a href="/laporan" class="<?= $active === '/laporan' ? 'on' : ''; ?>">Laporan PPT</a>

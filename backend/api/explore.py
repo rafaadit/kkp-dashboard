@@ -483,6 +483,85 @@ def bilateral():
     })
 
 
+@explore_bp.get("/diagnostik")
+@require_perm("explore.view")
+def diagnostik():
+    """Analisis diagnostik konsentrasi & ketergantungan kinerja perdagangan RI."""
+    exim = parse_exim(request)
+    where, params = _filters(request)
+    conds = list(where)
+    w = (" AND ".join(conds) + " ") if conds else ""
+
+    totals = _row(
+        f"SELECT COUNT(*) AS baris, COUNT(DISTINCT r.kode_hs_2022) AS hs_unik, "
+        "       COUNT(DISTINCT r.kode_negara) AS negara_unik, "
+        "       COUNT(DISTINCT NULLIF(r.komoditas_5_2026,'')) AS komoditas_unik, "
+        "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+        "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+        f"FROM raw_exim r {('WHERE ' + w) if conds else ''}",
+        params,
+    )[0]
+
+    conds_c = conds + ["NULLIF(r.komoditas_5_2026,'') IS NOT NULL"]
+    q_c = f"WHERE {' AND '.join(conds_c)}"
+    comms_all = _row(
+        f"SELECT NULLIF(r.komoditas_5_2026,'') AS komoditas, "
+        "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+        "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+        f"FROM raw_exim r {q_c} GROUP BY NULLIF(r.komoditas_5_2026,'') "
+        "ORDER BY nilai_usd DESC",
+        params,
+    )
+    total = totals["nilai_usd"] or 0
+    top = comms_all[:25]
+    run = 0.0
+    for c in top:
+        c["share_nilai_persen"] = round(c["nilai_usd"] / total * 100, 4) if total else None
+        run += c["nilai_usd"]
+        c["kumulatif_persen"] = round(run / total * 100, 4) if total else None
+
+    hhi = 0.0
+    pareto_count = 0
+    acc = 0.0
+    for c in comms_all:
+        s = c["nilai_usd"] / total if total else 0
+        hhi += s * s
+        if acc < 0.8:
+            pareto_count += 1
+            acc += s
+    cr5 = sum(c["share_nilai_persen"] for c in top[:5]) if len(top) >= 5 else (top[-1]["kumulatif_persen"] if top else 0)
+
+    conds_n = conds + ["NULLIF(r.kode_negara,'') IS NOT NULL"]
+    q_n = f"WHERE {' AND '.join(conds_n)}"
+    top_negara = _row(
+        f"SELECT r.kode_negara, r.negara, "
+        "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+        "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+        f"FROM raw_exim r {q_n} GROUP BY r.kode_negara, r.negara "
+        "ORDER BY nilai_usd DESC LIMIT 15",
+        params,
+    )
+    for n in top_negara:
+        n["share_nilai_persen"] = round(n["nilai_usd"] / total * 100, 4) if total else None
+    cr3 = sum(n["share_nilai_persen"] for n in top_negara[:3]) if len(top_negara) >= 3 else (sum(n["share_nilai_persen"] for n in top_negara) if top_negara else 0)
+
+    return jsonify({
+        "exim": exim,
+        "totals": totals,
+        "top_komoditas": top,
+        "top_negara": top_negara,
+        "metrik": {
+            "hhi_komoditas": round(hhi * 10000, 1),
+            "konsentrasi_komoditas_cr5": round(cr5, 2) if cr5 else None,
+            "ketergantungan_negara_cr3": round(cr3, 2) if cr3 else None,
+            "komoditas_80_persen": pareto_count,
+            "label_hhi": ("sangat terkonsentrasi" if hhi >= 0.25
+                          else "cukup terkonsentrasi" if hhi >= 0.15
+                          else "tersebar"),
+        },
+    })
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

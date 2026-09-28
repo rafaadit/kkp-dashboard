@@ -156,6 +156,21 @@ def main():
     check("bilateral tanpa negara 400", c.get("/api/explore/bilateral", headers=H).status_code == 400)
     check("bilateral negara kosong 400", c.get("/api/explore/bilateral?negara=ZZ", headers=H).status_code == 400)
 
+    print("== explore/diagnostik ==")
+    r = c.get("/api/explore/diagnostik?exim=ekspor", headers=H)
+    check("diagnostik 200", r.status_code == 200)
+    d = r.get_json()
+    check("diagnostik totals hadir", d["totals"]["nilai_usd"] > 0)
+    check("diagnostik HHI 0..10000", 0 <= d["metrik"]["hhi_komoditas"] <= 10000)
+    check("diagnostik CR5 <= 100", d["metrik"]["konsentrasi_komoditas_cr5"] <= 100)
+    check("diagnostik pareto > 0", d["metrik"]["komoditas_80_persen"] > 0)
+    check("diagnostik top_komoditas kumulatif naik",
+          all(d["top_komoditas"][i]["kumulatif_persen"] >= d["top_komoditas"][i - 1]["kumulatif_persen"] for i in range(1, len(d["top_komoditas"]))))
+    check("diagnostik negara share descend",
+          d["top_negara"][0]["share_nilai_persen"] >= d["top_negara"][1]["share_nilai_persen"])
+    r = c.get("/api/explore/diagnostik?exim=impor&mulai=2026-01&akhir=2026-06", headers=H)
+    check("diagnostik filter 200", r.status_code == 200)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

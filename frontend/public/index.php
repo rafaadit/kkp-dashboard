@@ -84,6 +84,9 @@ try {
         case '/bilateral':
             $view = 'bilateral';
             break;
+        case '/diagnostik':
+            $view = 'diagnostik';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;
