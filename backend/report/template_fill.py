@@ -797,7 +797,7 @@ def _fill_slide7(nodes, d):
         vcur = d["series"][-1]["imp_kg"]
         yo_v = yoy_cur(vprev, vcur)[0]
     replace_by_ref(nodes, "VOLUME IMPOR\n0,23 Juta Ton\n     19,7% (YoY)",
-                   f"VOLUME IMPOR\n{id_fmt(tot['imp_kg'] / 1e6, 2)} Juta Ton\n     {yo_v or '-'} (YoY)")
+                   f"VOLUME IMPOR\n{id_fmt(tot['imp_kg'] / 1e9, 2)} Juta Ton\n     {yo_v or '-'} (YoY)")
 
     refs_neg = ["Tiongkok\n60,12 Juta", "Norway\n55,60 Juta", "Amerika Serikat\n42,02 Juta",
                 "Uni Eropa\n36,34 Juta", "ASEAN\n28,54 Juta", "Jepang\n22,24 Juta"]
