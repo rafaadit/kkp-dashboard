@@ -210,6 +210,18 @@ def main():
     check("dossier tanpa negara 400", c.get("/api/explore/dossier", headers=H).status_code == 400)
     check("dossier negara tak ada 400", c.get("/api/explore/dossier?negara=ZZ", headers=H).status_code == 400)
 
+    print("== explore/preskriptif ==")
+    r = c.get("/api/explore/preskriptif?exim=ekspor", headers=H)
+    check("preskriptif 200", r.status_code == 200)
+    d = r.get_json()
+    check("preskriptif recos > 0", len(d["rekomendasi"]) > 0)
+    check("preskriptif kini ada", all({"tindakan", "kategori", "target", "alasan"} <= set(x) for x in d["rekomendasi"]))
+    check("preskriptif metrik cr3", d["metrik"]["cr3_persen"] > 0)
+    check("preskriptif hhi range", 0 <= d["metrik"]["hhi_komoditas"] <= 10000)
+    check("preskriptif cr5 range", 0 <= d["metrik"]["cr5_komoditas_persen"] <= 100)
+    check("preskriptif top_market terurut",
+          all(d["metrik"]["top_market"][i]["nilai_usd"] >= d["metrik"]["top_market"][i + 1]["nilai_usd"] for i in range(len(d["metrik"]["top_market"]) - 1)))
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

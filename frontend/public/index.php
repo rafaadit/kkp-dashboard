@@ -96,6 +96,9 @@ try {
         case '/dossier':
             $view = 'dossier';
             break;
+        case '/preskriptif':
+            $view = 'preskriptif';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;

@@ -52,6 +52,7 @@ if ($session !== null && $session->isLoggedIn()) {
         <a href="/prediktif" class="<?= $active === '/prediktif' ? 'on' : ''; ?>">Prediktif</a>
         <a href="/potensi" class="<?= $active === '/potensi' ? 'on' : ''; ?>">Potensi &amp; Pangsa</a>
         <a href="/dossier" class="<?= $active === '/dossier' ? 'on' : ''; ?>">Dossier Pasar</a>
+        <a href="/preskriptif" class="<?= $active === '/preskriptif' ? 'on' : ''; ?>">Preskriptif</a>
         <a href="/perbandingan" class="<?= $active === '/perbandingan' ? 'on' : ''; ?>">Perbandingan</a>
         <a href="/trademap" class="<?= $active === '/trademap' ? 'on' : ''; ?>">TradeMap</a>
         <a href="/laporan" class="<?= $active === '/laporan' ? 'on' : ''; ?>">Laporan PPT</a>

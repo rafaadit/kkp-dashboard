@@ -78,6 +78,9 @@ Header: `Authorization: Bearer <token>`.
 - `/potensi` **Potensi Ekspor &amp; Pangsa Pasar** — momentum pasar (6 bulan
   vs 6 bulan sebelumnya, BPS riil) + komoditas momentum + snapshot TradeMap
   (pangsa mitra dalam data yang tersedia), dan prospek/hambatan pasar.
+- `/preskriptif` **Analisis Preskriptif** — rekomendasi rule-based dari data
+  BPS riil (momentum pasar, CR3, HHI/CR5, pasar menurun): pertahankan, ekspansi,
+  diversifikasi pasar/produk, evaluasi — dengan target & alasan berbasis angka.
 - `/dossier` **Dossier Pasar 360°** — profil per negara: tren ekspor RI
   per tahun, YoY, share RI, top komoditas ekspor/impor, neraca per tahun.
 - `/prediktif` **Analisis Prediktif** — proyeksi tren nilai bulanan

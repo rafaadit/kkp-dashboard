@@ -76,6 +76,7 @@ foreach ([
     '/potensi' => 'Potensi Ekspor &amp; Pangsa Pasar',
     '/dossier' => 'Dossier Pasar 360°',
     '/dossier?negara=US' => 'Neraca per Tahun',
+    '/preskriptif' => 'Analisis Preskriptif',
     '/trademap' => '<h1>TradeMap (ITC)</h1>',
     '/laporan' => '<h1>Laporan PPT</h1>',
     '/asisten' => '<h1>Asisten AI</h1>',

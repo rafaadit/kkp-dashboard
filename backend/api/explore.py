@@ -643,6 +643,110 @@ def _pos2ym(pos):
     return pos // 12, pos % 12 + 1
 
 
+@explore_bp.get("/preskriptif")
+@require_perm("explore.view")
+def preskriptif():
+    """Analisis preskriptif: rekomendasi rule-based dari data riil BPS
+    (momentum pasar, ketergantungan, konsentrasi produk, penurunan pasar)."""
+    exim = parse_exim(request)
+    last = _row(
+        "SELECT tahun AS y, bulan AS m FROM raw_exim "
+        "WHERE exim_type=%s ORDER BY tahun DESC, bulan DESC LIMIT 1",
+        [exim],
+    )
+    if not last:
+        return jsonify({"rekomendasi": [], "metrik": None})
+    pos = last[0]["y"] * 12 + (last[0]["m"] - 1)
+    ref_start, ref_end = _pos2ym(pos - 5), _pos2ym(pos)
+    prev_start, prev_end = _pos2ym(pos - 11), _pos2ym(pos - 6)
+
+    def _win(ps, pe):
+        return _row(
+            "SELECT r.kode_negara, r.negara, COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            "FROM raw_exim r WHERE r.exim_type=%s "
+            "AND (r.tahun, r.bulan) >= (%s,%s) AND (r.tahun, r.bulan) <= (%s,%s) "
+            "GROUP BY r.kode_negara, r.negara",
+            [exim, ps[0], ps[1], pe[0], pe[1]],
+        )
+
+    def _win_comms(ps, pe):
+        return _row(
+            "SELECT NULLIF(r.komoditas_5_2026,'') AS komoditas, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            "FROM raw_exim r WHERE r.exim_type=%s "
+            "AND (r.tahun, r.bulan) >= (%s,%s) AND (r.tahun, r.bulan) <= (%s,%s) "
+            "AND NULLIF(r.komoditas_5_2026,'') IS NOT NULL "
+            "GROUP BY NULLIF(r.komoditas_5_2026,'')",
+            [exim, ps[0], ps[1], pe[0], pe[1]],
+        )
+
+    ref = _win(ref_start, ref_end)
+    prev = {r["kode_negara"]: r["nilai_usd"] for r in _win(prev_start, prev_end)}
+    total_ref = sum(r["nilai_usd"] for r in ref) or 0
+
+    markets = [{
+        "kode_negara": r["kode_negara"],
+        "negara": r["negara"],
+        "nilai_usd": r["nilai_usd"],
+        "prev_nilai_usd": prev.get(r["kode_negara"]),
+        "pertumbuhan_persen": round((r["nilai_usd"] - prev.get(r["kode_negara"], 0)) / prev.get(r["kode_negara"], 0) * 100, 2)
+        if prev.get(r["kode_negara"]) else None,
+    } for r in ref]
+    markets.sort(key=lambda x: x["nilai_usd"], reverse=True)
+    top = markets[:5]
+    momentum = sorted([m for m in markets if (m["pertumbuhan_persen"] or 0) > 0 and (m["prev_nilai_usd"] or 0) >= 200_000],
+                      key=lambda x: x["pertumbuhan_persen"], reverse=True)[:5]
+    decliners = sorted([m for m in markets if (m["pertumbuhan_persen"] or 0) < 0 and (m["prev_nilai_usd"] or 0) >= 1_000_000],
+                       key=lambda x: x["pertumbuhan_persen"])[:3]
+    cr3 = sum(m["nilai_usd"] for m in top[:3]) / total_ref * 100 if total_ref else 0
+
+    comms = _win_comms(ref_start, ref_end)
+    comms.sort(key=lambda x: x["nilai_usd"], reverse=True)
+    hhi = sum((c["nilai_usd"] / total_ref) ** 2 for c in comms) if total_ref else 0
+    cr5 = sum(c["nilai_usd"] for c in comms[:5]) / total_ref * 100 if total_ref else 0
+
+    reco = []
+
+    def add(tindakan, kateg, target, alasan):
+        reco.append({"tindakan": tindakan, "kategori": kateg, "target": target, "alasan": alasan})
+
+    if top:
+        add("Pertahankan", "pertahankan", f"{top[0]['negara']} ({top[0]['kode_negara']})",
+            f"pasar terbesar: {top[0]['nilai_usd']:.2f} USD, share {top[0]['nilai_usd'] / total_ref * 100:.1f}% dari total.")
+    if momentum:
+        m = momentum[0]
+        add("Ekspansi agresif", "ekspansi", f"{m['negara']} ({m['kode_negara']})",
+            f"momentum pertumbuhan +{m['pertumbuhan_persen']:.1f}% (6 bulan terakhir).")
+        for m in momentum[1:3]:
+            add("Jaga momentum", "pertahankan", f"{m['negara']} ({m['kode_negara']})",
+                f"pertumbuhan +{m['pertumbuhan_persen']:.1f}% saat pasar lain stagnan.")
+    if cr3 > 60:
+        add("Diversifikasi pasar", "diversifikasi", "ketergantungan 3 pasar teratas",
+            f"CR3 {cr3:.0f}% > 60% — risiko konsentrasi pasar.")
+    if hhi >= 0.25 or cr5 >= 80:
+        add("Diversifikasi produk", "diversifikasi", "produk/konsentrasi komoditas",
+            f"HHI {hhi * 10000:.0f} / CR5 {cr5:.0f}% — ekspor terlalu bertumpu sedikit komoditas.")
+    for d_ in decliners:
+        add("Evaluasi", "evaluasi", f"{d_['negara']} ({d_['kode_negara']})",
+            f"penurunan {d_['pertumbuhan_persen']:.1f}% — periksa daya saing/hambatan.")
+    if not reco:
+        add("Pantau rutin", "pertahankan", "-", "tidak ada sinyal kuat; pantau tren bulanan.")
+
+    return jsonify({
+        "exim": exim,
+        "ref_periode": {"mulai": f"{ref_start[0]:04d}-{ref_start[1]:02d}", "akhir": f"{ref_end[0]:04d}-{ref_end[1]:02d}"},
+        "rekomendasi": reco,
+        "metrik": {
+            "cr3_persen": round(cr3, 2),
+            "hhi_komoditas": round(hhi * 10000, 1),
+            "cr5_komoditas_persen": round(cr5, 2),
+            "top_market": top,
+            "momentum": momentum,
+            "penurun": decliners,
+        },
+    })
+
+
 @explore_bp.get("/dossier")
 @require_perm("explore.view")
 def dossier():
