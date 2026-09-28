@@ -143,6 +143,19 @@ def main():
     check("regional share region sum~100",
           abs(sum(n["share_region_persen"] for n in dd["negara"]) - 100) < 1)
 
+    print("== explore/bilateral ==")
+    r = c.get("/api/explore/bilateral?negara=US", headers=H)
+    check("bilateral 200", r.status_code == 200)
+    d = r.get_json()
+    check("bilateral negara info", d["negara"]["kode_negara"] == "US")
+    check("bilateral neraca konsisten",
+          d["neraca_nilai_usd"] == round(d["ekspor"]["rincian"]["nilai_usd"] - d["impor"]["rincian"]["nilai_usd"], 4))
+    check("bilateral per_periode hadir", len(d["per_periode"]) > 0)
+    check("bilateral top ekspor & impor", len(d["ekspor"]["top_komoditas"]) > 0 and len(d["impor"]["top_komoditas"]) > 0)
+    check("bilateral komoditas filter 200", c.get("/api/explore/bilateral?negara=US&komoditas=Udang", headers=H).status_code == 200)
+    check("bilateral tanpa negara 400", c.get("/api/explore/bilateral", headers=H).status_code == 400)
+    check("bilateral negara kosong 400", c.get("/api/explore/bilateral?negara=ZZ", headers=H).status_code == 400)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

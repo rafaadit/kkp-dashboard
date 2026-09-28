@@ -67,6 +67,8 @@ foreach ([
     '/compare?exim=ekspor&negara_a=US&negara_b=CN' => 'Tren Nilai per Periode',
     '/regional' => 'Analisis Regional',
     '/regional?exim=ekspor&region=ASEAN' => 'Breakdown Negara',
+    '/bilateral' => 'Intelijen Bilateral',
+    '/bilateral?negara=US' => 'Neraca per Periode',
     '/trademap' => '<h1>TradeMap (ITC)</h1>',
     '/laporan' => '<h1>Laporan PPT</h1>',
     '/asisten' => '<h1>Asisten AI</h1>',

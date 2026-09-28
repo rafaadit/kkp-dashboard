@@ -399,6 +399,90 @@ def regional():
     return jsonify({"regional": rows, "total_nilai_usd": total})
 
 
+@explore_bp.get("/bilateral")
+@require_perm("explore.comparison")
+def bilateral():
+    """Intelijen bilateral: ekspor vs impor RI terhadap 1 negara (neraca dagang)."""
+    kode = (request.args.get("negara") or "").strip().upper()
+    if not kode:
+        raise ApiError("'negara' wajib diisi")
+    mulai = parse_bulan(request.args.get("mulai"))
+    akhir = parse_bulan(request.args.get("akhir"))
+    if mulai and akhir and (mulai[0], mulai[1] or 1) > (akhir[0], akhir[1] or 12):
+        raise ApiError("'mulai' tidak boleh setelah 'akhir'")
+
+    period_conds = []
+    p0 = []
+    if mulai:
+        period_conds.append("(r.tahun, r.bulan) >= (%s, %s)")
+        p0 += [mulai[0], mulai[1] or 1]
+    if akhir:
+        period_conds.append("(r.tahun, r.bulan) <= (%s, %s)")
+        p0 += [akhir[0], akhir[1] or 12]
+    km = (request.args.get("komoditas") or "").strip()
+    if km:
+        period_conds.append("r.komoditas_5_2026 LIKE %s")
+        p0.append(f"%{km}%")
+
+    def _flow(exim, n=6):
+        w = " AND ".join([f"r.exim_type=%s", "r.kode_negara=%s"] + period_conds)
+        agg = _row(
+            f"SELECT COUNT(*) AS baris, COUNT(DISTINCT r.kode_hs_2022) AS hs_unik, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            f"FROM raw_exim r WHERE {w}",
+            [exim, kode] + p0,
+        )[0]
+        top = _row(
+            f"SELECT r.komoditas_5_2026 AS komoditas, COUNT(*) AS baris, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            f"FROM raw_exim r WHERE {w} AND NULLIF(r.komoditas_5_2026,'') IS NOT NULL "
+            "GROUP BY r.komoditas_5_2026 ORDER BY nilai_usd DESC LIMIT %s",
+            [exim, kode] + p0 + [n],
+        )
+        ser = _row(
+            f"SELECT CONCAT(r.tahun,'-',LPAD(r.bulan,2,'0')) AS periode, "
+            "       COUNT(*) AS baris, COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            f"FROM raw_exim r WHERE {w} GROUP BY r.tahun, r.bulan "
+            "ORDER BY r.tahun, r.bulan",
+            [exim, kode] + p0,
+        )
+        return {"rincian": agg, "top_komoditas": top}, ser
+
+    info = _row(
+        "SELECT r.kode_negara, r.negara, r.kelompok_negara FROM raw_exim r "
+        f"WHERE r.kode_negara=%s AND NULLIF(r.negara,'') IS NOT NULL LIMIT 1",
+        [kode],
+    )
+    if not info:
+        raise ApiError(f"negara '{kode}' tidak ditemukan")
+
+    ekspor, ser_e = _flow("ekspor")
+    impor, ser_i = _flow("impor")
+
+    by_periode = {}
+    for s in ser_e:
+        by_periode.setdefault(s["periode"], {"periode": s["periode"], "ekspor": None, "impor": None})["ekspor"] = s["nilai_usd"]
+    for s in ser_i:
+        by_periode.setdefault(s["periode"], {"periode": s["periode"], "ekspor": None, "impor": None})["impor"] = s["nilai_usd"]
+    merged = [{
+        "periode": k,
+        "ekspor": v["ekspor"],
+        "impor": v["impor"],
+        "neraca": (v["ekspor"] or 0) - (v["impor"] or 0) if v["ekspor"] is not None and v["impor"] is not None else None,
+    } for k, v in sorted(by_periode.items())]
+
+    return jsonify({
+        "negara": info[0],
+        "ekspor": ekspor,
+        "impor": impor,
+        "neraca_nilai_usd": round(ekspor["rincian"]["nilai_usd"] - impor["rincian"]["nilai_usd"], 4),
+        "per_periode": merged,
+    })
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

@@ -81,6 +81,9 @@ try {
         case '/regional':
             $view = 'regional';
             break;
+        case '/bilateral':
+            $view = 'bilateral';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;

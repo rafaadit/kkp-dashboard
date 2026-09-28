@@ -73,6 +73,9 @@ Header: `Authorization: Bearer <token>`.
 - `/regional` **Analisis Regional** — ringkasan kelompok negara
   (`kelompok_negara`) + share nilai; pilih regional → detail KPI + breakdown
   per negara (share dalam regional).
+- `/bilateral` **Intelijen Bilateral** — pilih negara mitra → neraca dagang
+  RI (ekspor−impor), top komoditas ekspor & impor, neraca per periode
+  (opsional filter komoditas & periode).
 - `/perbandingan` Dua tab: **Periode (BPS)** — pertumbuhan % nilai & volume
   2 periode; **BPS vs TradeMap** — form flow/tahun/komoditas/negara,
   tabel berdampingan (endpoint `/api/trademap/banding`), KPI + catatan cakupan
