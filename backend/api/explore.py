@@ -336,6 +336,69 @@ def country_compare():
     })
 
 
+@explore_bp.get("/regional")
+@require_perm("explore.view")
+def regional():
+    """Analisis regional (kelompok_negara). Tanpa 'region' => ringkasan
+    seluruh kelompok; dengan 'region' => detail + breakdown per negara."""
+    exim = parse_exim(request)
+    region = (request.args.get("region") or "").strip()
+    where, params = _filters(request)
+    base = " AND ".join(where)
+
+    if region:
+        conds = ([base] if base else []) + ["r.kelompok_negara = %s"]
+        w = " AND ".join(conds)
+        detail = _row(
+            f"SELECT r.kelompok_negara AS region, COUNT(*) AS baris, "
+            "       COUNT(DISTINCT r.kode_hs_2022) AS hs_unik, "
+            "       COUNT(DISTINCT r.kode_negara) AS jumlah_negara, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd, "
+            "       COALESCE(SUM(r.setara_segar),0) AS setara_segar "
+            f"FROM raw_exim r WHERE {w} GROUP BY r.kelompok_negara",
+            params + [region],
+        )
+        negara = _row(
+            f"SELECT r.kode_negara, r.negara, COUNT(*) AS baris, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            f"FROM raw_exim r WHERE {w} GROUP BY r.kode_negara, r.negara "
+            "ORDER BY nilai_usd DESC",
+            params + [region],
+        )
+        total_region = detail[0]["nilai_usd"] if detail else 0
+        for n in negara:
+            n["share_region_persen"] = (n["nilai_usd"] / total_region * 100) if total_region else None
+        return jsonify({
+            "region": region,
+            "detail": detail[0] if detail else None,
+            "negara": negara,
+        })
+
+    cond_base = [base] if base else []
+    w = " AND ".join(cond_base + ["NULLIF(r.kelompok_negara,'') IS NOT NULL"])
+    rows = _row(
+        f"SELECT r.kelompok_negara AS region, COUNT(*) AS baris, "
+        "       COUNT(DISTINCT r.kode_negara) AS jumlah_negara, "
+        "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+        "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+        f"FROM raw_exim r WHERE {w} "
+        "GROUP BY r.kelompok_negara ORDER BY nilai_usd DESC",
+        params,
+    )
+    w_total = (" AND ".join(cond_base)) if cond_base else None
+    total = _row(
+        "SELECT COALESCE(SUM(r.nil_usd),0) AS total FROM raw_exim r "
+        + (f"WHERE {w_total}" if w_total else ""),
+        params,
+    )[0]["total"] or 0
+    for r_ in rows:
+        r_["share_nilai_persen"] = (r_["nilai_usd"] / total * 100) if total else None
+        r_["harga_usd_kg"] = (r_["nilai_usd"] / r_["volume_kg"]) if r_["volume_kg"] else None
+    return jsonify({"regional": rows, "total_nilai_usd": total})
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

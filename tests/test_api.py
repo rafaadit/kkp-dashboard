@@ -127,6 +127,22 @@ def main():
     check("compare kosong 400", c.get("/api/explore/country_compare", headers=H).status_code == 400)
     check("compare negara tak ada 400", c.get("/api/explore/country_compare?negara_a=US&negara_b=ZZ", headers=H).status_code == 400)
 
+    print("== explore/regional ==")
+    r = c.get("/api/explore/regional?exim=ekspor", headers=H)
+    check("regional 200", r.status_code == 200)
+    d = r.get_json()
+    check("regional > 3 kelompok", len(d["regional"]) > 3, str(len(d["regional"])))
+    check("regional rate desc", d["regional"][0]["nilai_usd"] >= d["regional"][1]["nilai_usd"])
+    check("regional share sum~100", abs(sum(r_["share_nilai_persen"] for r_ in d["regional"]) - 100) < 1)
+    top_region = d["regional"][0]["region"]
+    r = c.get("/api/explore/regional?exim=ekspor&region=" + top_region, headers=H)
+    check("regional detail 200", r.status_code == 200)
+    dd = r.get_json()
+    check("regional detail match", dd["region"] == top_region)
+    check("regional detail negara>0", len(dd["negara"]) > 0)
+    check("regional share region sum~100",
+          abs(sum(n["share_region_persen"] for n in dd["negara"]) - 100) < 1)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)
