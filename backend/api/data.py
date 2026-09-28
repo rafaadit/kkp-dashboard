@@ -28,7 +28,7 @@ _BROWSE_COLS = [
     "r.uraian",
     "r.non_konsumsi_konsumsi",
     "r.olahan_bukan",
-    "r.asalbahanbaku",
+    "h.asal_bahan_baku AS asal_bahan_baku",
     "r.kode_prov_asal",
     "r.provinsi_asal",
     "r.pulau_prov_asal",
