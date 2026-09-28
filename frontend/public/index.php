@@ -26,6 +26,29 @@ if ($uri === '') {
     $uri = '/';
 }
 
+// Passthrough aset statis bila server tanpa docroot (php -S ... index.php).
+$static = PUBLIC_PATH . $uri;
+if ($uri !== '/' && is_file($static)) {
+    $mime = [
+        'css' => 'text/css',
+        'js' => 'application/javascript',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'svg' => 'image/svg+xml',
+        'gif' => 'image/gif',
+        'ico' => 'image/x-icon',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+    ];
+    $ext = strtolower(pathinfo($static, PATHINFO_EXTENSION));
+    header('Content-Type: ' . ($mime[$ext] ?? 'application/octet-stream'));
+    header('Content-Length: ' . filesize($static));
+    readfile($static);
+    exit;
+}
+
 try {
     if ($uri === '/login') {
         if ($session->isLoggedIn()) {

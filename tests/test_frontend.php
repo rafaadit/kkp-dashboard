@@ -56,6 +56,10 @@ check('login benar -> 302 ke /', $c === 302 && str_contains($body, '/login') ===
 [$c, $body] = http('POST', "$base/login", 'email=admin@kkp.local&password=wrong', '/tmp/kkp_bad_' . getmypid() . '.txt');
 check('login salah -> 401', $c === 401, "$c");
 
+[$c, $body] = http('GET', "$base/assets/app.css");
+check('css 200 tanpa login', $c === 200, "$c");
+check('css content-type text/css', str_contains($body, '.sidebar') || str_contains($body, ':root'), substr($body, 0, 60));
+
 echo "== pages ==";
 foreach ([
     '/' => '<h1>Dashboard Ekspor/Impor</h1>',
