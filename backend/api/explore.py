@@ -214,6 +214,128 @@ def provinsi():
     return jsonify({"by": by, "limit": limit, "total_nilai_usd": total, "provinsi": rows})
 
 
+@explore_bp.get("/negara_list")
+@require_perm("explore.view")
+def negara_list():
+    """Daftar kode+negara unik (urut A-Z) untuk dropdown Country Compare."""
+    exim = parse_exim(request)
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT kode_negara, negara, COUNT(*) AS baris "
+            "FROM raw_exim "
+            "WHERE exim_type=%s AND NULLIF(kode_negara,'') IS NOT NULL "
+            "GROUP BY kode_negara, negara ORDER BY negara",
+            (exim,),
+        )
+        rows = [row_to_dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+    return jsonify({"jenis": "negara_list", "negara": rows})
+
+
+@explore_bp.get("/country_compare")
+@require_perm("explore.comparison")
+def country_compare():
+    """Bandingkan kinerja ekspor/impor RI ke 2 negara dalam rentang periode."""
+    exim = parse_exim(request)
+    a = (request.args.get("negara_a") or "").strip().upper()
+    b = (request.args.get("negara_b") or "").strip().upper()
+    if not a or not b:
+        raise ApiError("'negara_a' dan 'negara_b' wajib diisi")
+    if a == b:
+        raise ApiError("negara_a dan negara_b harus berbeda")
+    mulai = parse_bulan(request.args.get("mulai"))
+    akhir = parse_bulan(request.args.get("akhir"))
+    if mulai and akhir and (mulai[0], mulai[1] or 1) > (akhir[0], akhir[1] or 12):
+        raise ApiError("'mulai' tidak boleh setelah 'akhir'")
+
+    period_conds = []
+    p = [exim]
+    if mulai:
+        period_conds.append("(r.tahun, r.bulan) >= (%s, %s)")
+        p += [mulai[0], mulai[1] or 1]
+    if akhir:
+        period_conds.append("(r.tahun, r.bulan) <= (%s, %s)")
+        p += [akhir[0], akhir[1] or 12]
+
+    def _agg(kode):
+        w = " AND ".join(["r.exim_type=%s", "r.kode_negara=%s"] + period_conds)
+        rows = _row(
+            f"SELECT r.kode_negara, r.negara, r.kelompok_negara, "
+            "       COUNT(*) AS baris, COUNT(DISTINCT r.kode_hs_2022) AS hs_unik, "
+            "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd, "
+            "       COALESCE(SUM(r.setara_segar),0) AS setara_segar "
+            f"FROM raw_exim r WHERE {w} "
+            "GROUP BY r.kode_negara, r.negara, r.kelompok_negara",
+            [exim, kode] + p[1:],
+        )
+        return rows[0] if rows else None
+
+    def _top_comms(kode, n=6):
+        w = " AND ".join(["r.exim_type=%s", "r.kode_negara=%s"] + period_conds)
+        return _row(
+            f"SELECT r.komoditas_5_2026 AS komoditas, "
+            "       COUNT(*) AS baris, COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            f"FROM raw_exim r WHERE {w} "
+            "       AND NULLIF(r.komoditas_5_2026,'') IS NOT NULL "
+            "GROUP BY r.komoditas_5_2026 ORDER BY nilai_usd DESC LIMIT %s",
+            [exim, kode] + p[1:] + [n],
+        )
+
+    def _series(kode):
+        w = " AND ".join(["r.exim_type=%s", "r.kode_negara=%s"] + period_conds)
+        return _row(
+            f"SELECT r.kode_negara AS kode_negara, r.tahun, r.bulan, "
+            "       CONCAT(r.tahun,'-',LPAD(r.bulan,2,'0')) AS periode, "
+            "       COUNT(*) AS baris, COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+            "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+            f"FROM raw_exim r WHERE {w} "
+            "GROUP BY r.tahun, r.bulan ORDER BY r.tahun, r.bulan",
+            [exim, kode] + p[1:],
+        )
+
+    agg_a = _agg(a)
+    agg_b = _agg(b)
+    if agg_a is None:
+        raise ApiError(f"negara '{a}' tidak ditemukan pada periode ini")
+    if agg_b is None:
+        raise ApiError(f"negara '{b}' tidak ditemukan pada periode ini")
+
+    total = _row(
+        f"SELECT COALESCE(SUM(r.nil_usd),0) AS total FROM raw_exim r "
+        f"WHERE {' AND '.join(['r.exim_type=%s'] + period_conds)}",
+        p,
+    )[0]["total"] or 0
+    for g in (agg_a, agg_b):
+        g["share_nilai_persen"] = (g["nilai_usd"] / total * 100) if total else None
+        g["harga_usd_kg"] = (g["nilai_usd"] / g["volume_kg"]) if g["volume_kg"] else None
+        g["top_komoditas"] = _top_comms(g["kode_negara"])
+
+    by_periode = {}
+    for s in _series(a) + _series(b):
+        key = s["periode"]
+        by_periode.setdefault(key, {"periode": key, "a": None, "b": None})
+        slot = "a" if s["kode_negara"] == a else "b"
+        by_periode[key][slot] = {
+            "baris": s["baris"],
+            "volume_kg": s["volume_kg"],
+            "nilai_usd": s["nilai_usd"],
+        }
+    merged = [{"periode": k, "a": v["a"], "b": v["b"]} for k, v in sorted(by_periode.items())]
+
+    return jsonify({
+        "exim": exim,
+        "negara_a": agg_a,
+        "negara_b": agg_b,
+        "per_bulan": merged,
+        "selisih_nilai_usd": round(agg_a["nilai_usd"] - agg_b["nilai_usd"], 4),
+    })
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

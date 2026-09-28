@@ -75,6 +75,9 @@ try {
         case '/provinsi':
             $view = 'provinsi';
             break;
+        case '/compare':
+            $view = 'compare';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;

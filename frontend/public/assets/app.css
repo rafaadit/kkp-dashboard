@@ -15,6 +15,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); }
 a { color: var(--brand); text-decoration: none; }
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
 
 .layout { display: flex; min-height: 100vh; }
 

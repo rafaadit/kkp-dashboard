@@ -66,6 +66,10 @@ Header: `Authorization: Bearer <token>`.
 - `/provinsi` Top provinsi asal barang (ekspor) / bongkar (impor); bisa
   dialihkan ke `?by=pelabuhan` (provinsi pelabuhan muat/bongkar). Data riil
   BPS dari kolom `provinsi_asal` / `provinsi_pelabuhan` raw_exim.
+- `/compare` **Country Compare** — bandingkan kinerja ekspor/impor RI ke
+  2 negara: KPI nilai/volume/share/harga, top komoditas per negara, tren
+  nilai per periode, dan selisih A − B. Form: exim, negara A/B (dropdown dari
+  `/api/explore/negara_list`), rentang periode.
 - `/perbandingan` Dua tab: **Periode (BPS)** — pertumbuhan % nilai & volume
   2 periode; **BPS vs TradeMap** — form flow/tahun/komoditas/negara,
   tabel berdampingan (endpoint `/api/trademap/banding`), KPI + catatan cakupan

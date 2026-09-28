@@ -108,6 +108,25 @@ def main():
     check("provinsi by=pelabuhan 200", r.status_code == 200 and r.get_json()["by"] == "pelabuhan")
     check("provinsi by=zzz 400", c.get("/api/explore/provinsi?by=zzz", headers=H).status_code == 400)
 
+    print("== explore/country_compare ==")
+    r = c.get("/api/explore/negara_list?exim=ekspor", headers=H)
+    check("negara_list 200", r.status_code == 200)
+    nl = r.get_json()["negara"]
+    check("negara_list > 100", len(nl) > 100, str(len(nl)))
+    r = c.get("/api/explore/country_compare?exim=ekspor&negara_a=US&negara_b=CN", headers=H)
+    check("compare 200", r.status_code == 200)
+    d = r.get_json()
+    check("compare a==US", d["negara_a"]["kode_negara"] == "US")
+    check("compare b==CN", d["negara_b"]["kode_negara"] == "CN")
+    check("compare a nilai>0", d["negara_a"]["nilai_usd"] > 0)
+    check("compare selisih konsisten",
+          d["selisih_nilai_usd"] == round(d["negara_a"]["nilai_usd"] - d["negara_b"]["nilai_usd"], 4))
+    check("compare per_bulan hadir", len(d["per_bulan"]) > 0)
+    check("compare top komoditas", all(len(g["top_komoditas"]) > 0 for g in (d["negara_a"], d["negara_b"])))
+    check("compare sama negara 400", c.get("/api/explore/country_compare?negara_a=US&negara_b=US", headers=H).status_code == 400)
+    check("compare kosong 400", c.get("/api/explore/country_compare", headers=H).status_code == 400)
+    check("compare negara tak ada 400", c.get("/api/explore/country_compare?negara_a=US&negara_b=ZZ", headers=H).status_code == 400)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

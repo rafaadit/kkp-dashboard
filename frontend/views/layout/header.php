@@ -45,6 +45,7 @@ if ($session !== null && $session->isLoggedIn()) {
         <a href="/komoditas" class="<?= $active === '/komoditas' ? 'on' : ''; ?>">Komoditas</a>
         <a href="/negara" class="<?= $active === '/negara' ? 'on' : ''; ?>">Negara</a>
         <a href="/provinsi" class="<?= $active === '/provinsi' ? 'on' : ''; ?>">Provinsi Asal</a>
+        <a href="/compare" class="<?= $active === '/compare' ? 'on' : ''; ?>">Banding Negara</a>
         <a href="/perbandingan" class="<?= $active === '/perbandingan' ? 'on' : ''; ?>">Perbandingan</a>
         <a href="/trademap" class="<?= $active === '/trademap' ? 'on' : ''; ?>">TradeMap</a>
         <a href="/laporan" class="<?= $active === '/laporan' ? 'on' : ''; ?>">Laporan PPT</a>
