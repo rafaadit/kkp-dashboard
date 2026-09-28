@@ -78,6 +78,12 @@ Header: `Authorization: Bearer <token>`.
 - `/potensi` **Potensi Ekspor &amp; Pangsa Pasar** — momentum pasar (6 bulan
   vs 6 bulan sebelumnya, BPS riil) + komoditas momentum + snapshot TradeMap
   (pangsa mitra dalam data yang tersedia), dan prospek/hambatan pasar.
+- `/kompetitor` **Profil Kompetitor &amp; Lanskap Persaingan** — scaffold jujur:
+  cakupan TradeMap yang ada (mitra ekspor RI, per produk/tahun) + daftar data
+  dibutuhkan (impor dunia per penjual — butuh TRADEMAP_API_KEY).
+- `/ntm` **Hambatan Non-Tarif (NTM/SPS)** — scaffold kategorisasi (SPS, fiskal,
+  karantina, pelabelan, lisensi) dengan status "belum ada data" sampai sumber
+  FAO SPS / UNCTAD TRAINS tersambung.
 - `/preskriptif` **Analisis Preskriptif** — rekomendasi rule-based dari data
   BPS riil (momentum pasar, CR3, HHI/CR5, pasar menurun): pertahankan, ekspansi,
   diversifikasi pasar/produk, evaluasi — dengan target & alasan berbasis angka.

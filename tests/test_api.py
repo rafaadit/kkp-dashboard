@@ -222,6 +222,19 @@ def main():
     check("preskriptif top_market terurut",
           all(d["metrik"]["top_market"][i]["nilai_usd"] >= d["metrik"]["top_market"][i + 1]["nilai_usd"] for i in range(len(d["metrik"]["top_market"]) - 1)))
 
+    print("== kompetitor/ntm scaffold ==")
+    r = c.get("/api/explore/kompetitor_scope", headers=H)
+    check("kompetitor_scope 200", r.status_code == 200)
+    d = r.get_json()
+    check("kompetitor sumber_kompetitor > 0", len(d["sumber_kompetitor"]) > 0)
+    check("kompetitor partner_ekspor_id", len(d["partner_ekspor_id"]) > 0)
+    check("kompetitor cakupan hs 030617", any(x["hs"] == "030617" for x in d["cakupan_trademap"]))
+    r = c.get("/api/explore/ntm", headers=H)
+    check("ntm 200", r.status_code == 200)
+    d = r.get_json()
+    check("ntm kategori 5", len(d["kategori"]) == 5)
+    check("ntm semua status belum ada data", all(k["status"] == "belum ada data" for k in d["kategori"]))
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

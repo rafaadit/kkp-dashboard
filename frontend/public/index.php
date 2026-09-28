@@ -99,6 +99,12 @@ try {
         case '/preskriptif':
             $view = 'preskriptif';
             break;
+        case '/kompetitor':
+            $view = 'kompetitor';
+            break;
+        case '/ntm':
+            $view = 'ntm';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;

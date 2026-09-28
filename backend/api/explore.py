@@ -823,6 +823,52 @@ def dossier():
     })
 
 
+@explore_bp.get("/kompetitor_scope")
+@require_perm("explore.view")
+def kompetitor_scope():
+    """Cakupan data yang tersedia untuk profil kompetitor (scaffold jujur)."""
+    cakupan = _row(
+        "SELECT reporter, flow, NULLIF(TRIM(product_code),'') AS hs, year AS tahun, "
+        "       COUNT(*) AS baris, COALESCE(SUM(value_usd),0) AS nilai_usd "
+        "FROM trademap_trade GROUP BY reporter, flow, product_code, year ORDER BY reporter, flow, tahun",
+        [],
+    )
+    partner_ekspor = _row(
+        "SELECT t.partner, COALESCE(n.nama_negara, t.partner) AS nama_partner, "
+        "       COALESCE(SUM(t.value_usd),0) AS nilai_usd "
+        "FROM trademap_trade t LEFT JOIN ms_negara n ON n.kode_negara = t.partner "
+        "WHERE t.reporter='ID' AND t.flow='Export' "
+        "GROUP BY t.partner, n.nama_negara ORDER BY nilai_usd DESC",
+        [],
+    )
+    return jsonify({
+        "sumber_kompetitor": [
+            "impor dunia per negara-penjual (TradeMap, butuh key) — belum tersedia",
+            "posisi RI vs kompetitor per produk di pasar tujuan (TradeMap) — belum tersedia",
+        ],
+        "cakupan_trademap": cakupan,
+        "partner_ekspor_id": partner_ekspor,
+    })
+
+
+@explore_bp.get("/ntm")
+@require_perm("explore.view")
+def ntm():
+    """Scaffold hambatan non-tarif: struktur kategorisasi, data menunggu sumber eksternal."""
+    kategori = [
+        {"kode": "SPS", "nama": "Sanitary & Phytosanitary", "format": "sertifikasi kesehatan ikan/hasil perikanan", "status": "belum ada data"},
+        {"kode": "FISKAL", "nama": "Hambatan fiskal", "format": "bea masuk non-urgen, pungutan", "status": "belum ada data"},
+        {"kode": "KARANTINA", "nama": "Karantina & inspeksi", "format": "prosedur karantina perdagangan", "status": "belum ada data"},
+        {"kode": "PELABELAN", "nama": "Labeling & traceability", "format": "ketentuan pelabelan negara tujuan", "status": "belum ada data"},
+        {"kode": "LISENSI", "nama": "Lisensi & kuota impor", "format": "izin impor negara tujuan", "status": "belum ada data"},
+    ]
+    return jsonify({
+        "sumber": "FAO SPS / UNCTAD TRAINS — belum terhubung",
+        "kategori": kategori,
+        "catatan": "Struktur siap diisi saat sumber data tersambung; default menunggu input.",
+    })
+
+
 @explore_bp.get("/potensi")
 @require_perm("explore.view")
 def potensi():

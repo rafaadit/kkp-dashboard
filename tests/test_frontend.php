@@ -77,6 +77,8 @@ foreach ([
     '/dossier' => 'Dossier Pasar 360°',
     '/dossier?negara=US' => 'Neraca per Tahun',
     '/preskriptif' => 'Analisis Preskriptif',
+    '/kompetitor' => 'Lanskap Persaingan',
+    '/ntm' => 'Hambatan Non-Tarif',
     '/trademap' => '<h1>TradeMap (ITC)</h1>',
     '/laporan' => '<h1>Laporan PPT</h1>',
     '/asisten' => '<h1>Asisten AI</h1>',
