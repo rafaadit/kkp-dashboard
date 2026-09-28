@@ -89,6 +89,7 @@ h1 { font-size: 22px; margin: 4px 0 16px; }
 .kpi .v { font-size: 22px; font-weight: 700; margin: 6px 0 2px; }
 .kpi.pos .v { color: var(--pos); }
 .kpi.neg .v { color: var(--neg); }
+.kpi .sub { font-size: 11px; color: var(--muted); }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 18px; }

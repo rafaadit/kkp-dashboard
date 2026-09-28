@@ -117,16 +117,24 @@ try {
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $api = $session->api();
-                    $api->post('/api/report/generate_ppt', [
+                    [$st, $body] = $api->post('/api/report/generate_ppt', [
                         'tahun' => (int) ($_POST['tahun'] ?? 2026),
                         'bulan_awal' => (int) ($_POST['bulan_awal'] ?? 1),
                         'bulan_akhir' => (int) ($_POST['bulan_akhir'] ?? 6),
                     ]);
+                    if ($st !== 200) {
+                        $msg = is_array($body) ? ($body['error'] ?? 'gagal membuat PPT') : 'gagal membuat PPT';
+                        redirect('/laporan?err=' . urlencode((string) $msg));
+                    }
+                    $job = is_array($body) ? (string) ($body['job_id'] ?? '') : '';
+                    redirect('/laporan?ok=1&job=' . urlencode($job)
+                        . '&tahun=' . urlencode((string) ($_POST['tahun'] ?? 2026))
+                        . '&bulan_awal=' . urlencode((string) ($_POST['bulan_awal'] ?? 1))
+                        . '&bulan_akhir=' . urlencode((string) ($_POST['bulan_akhir'] ?? 6)));
                 } catch (Throwable $e) {
                     // pesan error ditampilkan di view via query
                     redirect('/laporan?err=' . urlencode($e->getMessage()));
                 }
-                redirect('/laporan?ok=1');
             }
             $view = 'laporan';
             break;

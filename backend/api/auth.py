@@ -153,7 +153,12 @@ def login():
         cur.execute("UPDATE app_users SET last_login_at = NOW() WHERE id = %s", (user["id"],))
         conn.commit()
         conn.close()
-        return jsonify({"token": raw_token, "expires_at": expires.isoformat() + "Z", "user": {"id": user["id"], "nama": user["nama"], "email": user["email"]}})
+        sess = _load_session(raw_token)
+        return jsonify({
+            "token": raw_token,
+            "expires_at": expires.isoformat() + "Z",
+            "user": sess or {"id": user["id"], "nama": user["nama"], "email": user["email"]},
+        })
     finally:
         try:
             conn.close()
