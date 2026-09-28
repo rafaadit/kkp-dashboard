@@ -3,6 +3,7 @@
 
 Dispatch per job_type:
   trademap_download -> TradeMapDownloader.run(...) memakai params_json job.
+  jisdor_download   -> JisdorDownloader.run(...) memakai params_json job.
 
 CLI:
   --once        jalankan satu sweep lalu keluar (cocok untuk cron)
@@ -26,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from backend.db import get_connection  # noqa: E402
 
-KNOWN_JOB_TYPES = {"trademap_download"}
+KNOWN_JOB_TYPES = {"trademap_download", "jisdor_download"}
 
 
 def dispatch(conn, job):
@@ -44,6 +45,22 @@ def dispatch(conn, job):
             year=params.get("year"),
             partner=params.get("partner"),
             source=params.get("source", "TradeMap ITC"),
+            fixture=params.get("fixture"),
+            process=bool(params.get("process", True)),
+            commit=True,
+            job_id=job["id"],
+        )
+        dl.close()
+        return res.get("ok")
+    if jt == "jisdor_download":
+        from backend.kurs.jisdor import JisdorDownloader
+
+        dl = JisdorDownloader(conn)
+        res = dl.run(
+            mts=params.get("mts", "USD"),
+            start=params.get("start"),
+            end=params.get("end"),
+            source=params.get("source", "Bank Indonesia JISDOR"),
             fixture=params.get("fixture"),
             process=bool(params.get("process", True)),
             commit=True,

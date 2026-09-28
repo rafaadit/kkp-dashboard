@@ -25,6 +25,8 @@ EXPECTED_TABLES = sorted([
     "app_users", "app_user_tokens", "app_notifications",
     # exim
     "raw_exim",
+    # kurs
+    "jisdor_daily",
     # trademap
     "trademap_raw", "trademap_trade", "trademap_hs_mapping", "trademap_validation_results",
     # analytics & logging
