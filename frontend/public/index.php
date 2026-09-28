@@ -72,6 +72,9 @@ try {
         case '/negara':
             $view = 'negara';
             break;
+        case '/provinsi':
+            $view = 'provinsi';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;

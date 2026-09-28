@@ -183,6 +183,37 @@ def negara():
     return jsonify({"limit": limit, "negara": rows, "kelompok_negara": kelompok})
 
 
+@explore_bp.get("/provinsi")
+@require_perm("explore.view")
+def provinsi():
+    """Top provinsi asal (ekspor) / bongkar (impor) + share nilai."""
+    limit = require_limit(request, default=15, maximum=50)
+    by = request.args.get("by", "asal").strip().lower()
+    if by not in ("asal", "pelabuhan"):
+        raise ApiError("'by' harus 'asal' atau 'pelabuhan'")
+    name_col = "provinsi_asal" if by == "asal" else "provinsi_pelabuhan"
+    where, params = _filters(request)
+    w = " AND ".join(where) + f" AND NULLIF(r.{name_col},'') IS NOT NULL"
+    rows = _row(
+        f"SELECT r.{name_col} AS provinsi, "
+        "       COUNT(*) AS baris, "
+        "       COUNT(DISTINCT r.kode_hs_2022) AS hs_unik, "
+        "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+        "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd, "
+        "       COALESCE(SUM(r.setara_segar),0) AS setara_segar "
+        f"FROM raw_exim r WHERE {w} "
+        f"GROUP BY r.{name_col} ORDER BY nilai_usd DESC LIMIT %s",
+        params + [limit],
+    )
+    total = _row(
+        f"SELECT COALESCE(SUM(r.nil_usd),0) AS total FROM raw_exim r WHERE {w}", params
+    )[0]["total"] or 0
+    for r in rows:
+        r["share_nilai_persen"] = (r["nilai_usd"] / total * 100) if total else None
+        r["harga_usd_kg"] = (r["nilai_usd"] / r["volume_kg"]) if r["volume_kg"] else None
+    return jsonify({"by": by, "limit": limit, "total_nilai_usd": total, "provinsi": rows})
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

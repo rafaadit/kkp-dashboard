@@ -92,6 +92,22 @@ def main():
           any(k["komoditas"].lower() == "udang" for k in kl))
     check("komoditas_list punya baris>0", all(k["baris"] > 0 for k in kl))
 
+    print("== explore/provinsi ==")
+    r = c.get("/api/explore/provinsi?exim=ekspor&limit=5", headers=H)
+    check("provinsi 200", r.status_code == 200)
+    d = r.get_json()
+    check("provinsi len==5", len(d["provinsi"]) == 5)
+    check("provinsi rate desc", d["provinsi"][0]["nilai_usd"] >= d["provinsi"][1]["nilai_usd"])
+    check("provinsi top==Jawa Timur", d["provinsi"][0]["provinsi"] == "Jawa Timur", str(d["provinsi"][0]))
+    check("provinsi total>0", d["total_nilai_usd"] > 0)
+    r = c.get("/api/explore/provinsi?exim=ekspor&limit=50", headers=H)
+    allp = r.get_json()["provinsi"]
+    check("provinsi 37 data", len(allp) == 37, str(len(allp)))
+    check("provinsi share sum~100", abs(sum(p["share_nilai_persen"] for p in allp) - 100) < 1)
+    r = c.get("/api/explore/provinsi?exim=ekspor&by=pelabuhan", headers=H)
+    check("provinsi by=pelabuhan 200", r.status_code == 200 and r.get_json()["by"] == "pelabuhan")
+    check("provinsi by=zzz 400", c.get("/api/explore/provinsi?by=zzz", headers=H).status_code == 400)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

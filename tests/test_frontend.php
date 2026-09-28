@@ -61,6 +61,8 @@ foreach ([
     '/' => '<h1>Dashboard Ekspor/Impor</h1>',
     '/komoditas' => '<h1>Analisis Komoditas</h1>',
     '/negara' => '<h1>Analisis Negara</h1>',
+    '/provinsi' => '<h1>Ekspor Provinsi Asal</h1>',
+    '/provinsi?by=pelabuhan' => 'Provinsi Pelabuhan',
     '/trademap' => '<h1>TradeMap (ITC)</h1>',
     '/laporan' => '<h1>Laporan PPT</h1>',
     '/asisten' => '<h1>Asisten AI</h1>',

@@ -63,6 +63,9 @@ Header: `Authorization: Bearer <token>`.
   Mendukung deep-link `/dashboard?komoditas=<nama>` (misal dari sidebar).
 - `/komoditas` Top komoditas_5_2026 (volume, nilai, harga/kg, share %).
 - `/negara` Top negara tujuan/asal + kelompok negara.
+- `/provinsi` Top provinsi asal barang (ekspor) / bongkar (impor); bisa
+  dialihkan ke `?by=pelabuhan` (provinsi pelabuhan muat/bongkar). Data riil
+  BPS dari kolom `provinsi_asal` / `provinsi_pelabuhan` raw_exim.
 - `/perbandingan` Dua tab: **Periode (BPS)** — pertumbuhan % nilai & volume
   2 periode; **BPS vs TradeMap** — form flow/tahun/komoditas/negara,
   tabel berdampingan (endpoint `/api/trademap/banding`), KPI + catatan cakupan
