@@ -171,6 +171,18 @@ def main():
     r = c.get("/api/explore/diagnostik?exim=impor&mulai=2026-01&akhir=2026-06", headers=H)
     check("diagnostik filter 200", r.status_code == 200)
 
+    print("== explore/prediktif ==")
+    r = c.get("/api/explore/prediktif?exim=ekspor&horizon=6", headers=H)
+    check("prediktif 200", r.status_code == 200)
+    d = r.get_json()
+    check("prediktif series > 20", len(d["series"]) > 20, str(len(d["series"])))
+    check("prediktif forecast len==6", len(d["forecast"]) == 6, str(len(d["forecast"])))
+    check("prediktif metrik r2 0..1", 0 <= d["metrik"]["r2"] <= 1)
+    check("prediktif forecast naik berurutan",
+          all(d["forecast"][i]["periode"] < d["forecast"][i + 1]["periode"] for i in range(5)))
+    check("prediktif nilai non-negatif", all(f["linear"] >= 0 for f in d["forecast"]))
+    check("prediktif filter komoditas 200", c.get("/api/explore/prediktif?exim=ekspor&komoditas=Udang", headers=H).status_code == 200)
+
     print("== explore/negara ==")
     r = c.get("/api/explore/negara?exim=ekspor&limit=1", headers=H)
     check("negara 200", r.status_code == 200)

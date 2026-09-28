@@ -87,6 +87,9 @@ try {
         case '/diagnostik':
             $view = 'diagnostik';
             break;
+        case '/prediktif':
+            $view = 'prediktif';
+            break;
         case '/trademap':
             $view = 'trademap';
             break;

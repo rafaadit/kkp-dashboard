@@ -562,6 +562,83 @@ def diagnostik():
     })
 
 
+def _next_ym(tahun, bulan, n):
+    """Tambahkan n bulan ke (tahun, bulan), kembalikan (y, m)."""
+    total = tahun * 12 + (bulan - 1) + n
+    return total // 12, (total % 12) + 1
+
+
+@explore_bp.get("/prediktif")
+@require_perm("explore.view")
+def prediktif():
+    """Analisis prediktif sederhana: proyeksi tren nilai bulanan
+    (linear regression + naive + moving-average) untuk horizon ke depan."""
+    where, params = _filters(request)
+    conds = list(where)
+    w = (" AND ".join(conds) + " ") if conds else ""
+    rows = _row(
+        "SELECT r.tahun, r.bulan, "
+        "       CONCAT(r.tahun,'-',LPAD(r.bulan,2,'0')) AS periode, "
+        "       COUNT(*) AS baris, "
+        "       COALESCE(SUM(r.vol_kg),0) AS volume_kg, "
+        "       COALESCE(SUM(r.nil_usd),0) AS nilai_usd "
+        f"FROM raw_exim r {('WHERE ' + w) if conds else ''} "
+        "GROUP BY r.tahun, r.bulan ORDER BY r.tahun, r.bulan",
+        params,
+    )
+    if len(rows) < 2:
+        return jsonify({"series": [], "forecast": [], "metrik": None})
+
+    ys = [float(r["nilai_usd"]) for r in rows]
+    n = len(ys)
+    xs = list(range(n))
+
+    sum_x = sum(xs)
+    sum_y = sum(ys)
+    sum_xx = sum(x * x for x in xs)
+    sum_xy = sum(x * y for x, y in zip(xs, ys))
+    denom = n * sum_xx - sum_x * sum_x
+    slope = (n * sum_xy - sum_x * sum_y) / denom if denom else 0.0
+    intercept = (sum_y - slope * sum_x) / n
+
+    mean_y = sum_y / n
+    ss_tot = sum((y - mean_y) ** 2 for y in ys) or 1
+    ss_res = sum((y - (intercept + slope * x)) ** 2 for x, y in zip(xs, ys))
+    r2 = max(0.0, min(1.0, 1 - ss_res / ss_tot))
+
+    horizon = max(1, min(12, int(request.args.get("horizon", 6))))
+    last_y, last_m = rows[-1]["tahun"], rows[-1]["bulan"]
+    forecast = []
+    for i in range(1, horizon + 1):
+        y, m = _next_ym(last_y, last_m, i)
+        xf = n - 1 + i
+        ma3 = sum(ys[-3:]) / 3
+        forecast.append({
+            "periode": f"{y}-{m:02d}",
+            "linear": round(max(0.0, intercept + slope * xf), 4),
+            "naive": round(ys[-1], 4),
+            "ma3": round(ma3, 4) if n >= 3 else None,
+        })
+
+    last_avg = sum(ys[-3:]) / min(3, n)
+    return jsonify({
+        "series": [{
+            "periode": r["periode"],
+            "baris": r["baris"],
+            "volume_kg": float(r["volume_kg"]),
+            "nilai_usd": float(r["nilai_usd"]),
+        } for r in rows],
+        "forecast": forecast,
+        "metrik": {
+            "slope_per_bulan_usd": round(slope, 2),
+            "r2": round(r2, 4),
+            "rata_rata_3_bulan": round(last_avg, 2),
+            "atas_nilai_terakhir": round(forecast[-1]["linear"] / ys[-1] * 100, 2) if ys[-1] else None,
+            "label_tren": "naik" if slope > 0 else ("turun" if slope < 0 else "stabil"),
+        },
+    })
+
+
 def _selisih(a, b):
     if a is None or b is None or b == 0:
         return None

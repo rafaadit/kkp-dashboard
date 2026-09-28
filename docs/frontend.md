@@ -75,6 +75,8 @@ Header: `Authorization: Bearer <token>`.
   per negara (share dalam regional).
 - `/diagnostik` **Analisis Diagnostik** — HHI, CR5 komoditas, CR3 negara,
   Pareto 80% (dari data riil BPS).
+- `/prediktif` **Analisis Prediktif** — proyeksi tren nilai bulanan
+  (linear, naive, MA-3) hingga 12 bulan; filter komoditas/negara/periode.
 - `/bilateral` **Intelijen Bilateral** — pilih negara mitra → neraca dagang
   RI (ekspor−impor), top komoditas ekspor & impor, neraca per periode
   (opsional filter komoditas & periode).
