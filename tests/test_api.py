@@ -170,12 +170,17 @@ def main():
     check("browse total==4114", d["total"] == 4114, str(d["total"]))
     check("browse len==2", len(d["rows"]) == 2)
     check("browse pages 2057", d["pages"] == 2057)
-    check("browse no extra cols", all(
-        k in {"id", "exim_type", "tahun", "bulan", "periode", "kode_hs", "komoditas",
-              "uraian", "kode_negara", "negara", "kode_pelabuhan_muat",
-              "pelabuhan_muat_bongkar", "moda", "vol_kg", "nil_usd",
-              "harga_usd_kg", "setara_segar", "koding", "kurs_usd", "nilai_rp",
-              "status"} for k in d["rows"][0]))
+    check("browse col lookup hadir", all(
+        k in d["rows"][0] for k in
+        {"kode_hs_2dg", "komoditas_1_2017", "komoditas_2_2017", "bentuk_1",
+         "jenis", "provinsi_asal", "pulau_prov_asal", "provinsi_pelabuhan",
+         "pulau_prov_pelabuhan", "kelompok_negara", "ttc", "rendemen",
+         "setara_segar", "koding", "kurs_usd", "nilai_rp", "komoditas_5_2026",
+         "bentuk_3_2026", "status"}))
+    row0 = d["rows"][0]
+    check("browse lookup terisi (bukan BPS doang)",
+          (row0.get("provinsi_asal") or row0.get("komoditas_1_2017")
+           or row0.get("kelompok_negara")) is not None)
     r = c.get("/api/data/raw_exim?exim=impor&mulai=2026-06&limit=1", headers=H)
     check("browse impor total==1624", r.get_json()["total"] == 1624)
 

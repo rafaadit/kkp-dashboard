@@ -41,25 +41,70 @@ try {
 <?php if ($d): $total = (int) $d['total']; $pages = (int) $d['pages']; ?>
 <p class="muted">Total <?= \KKP\View::num($total); ?> baris · halaman <?= $page; ?>/<?= \KKP\View::num($pages); ?></p>
 <div class="tbl-scroll">
-<table class="tbl">
+<table class="tbl tbl-wide">
     <thead><tr>
-        <th>ID</th><th>Periode</th><th>HS</th><th>Komoditas</th>
-        <th>Negara</th><th>Pelabuhan</th><th>Vol (kg)</th><th>Nilai USD</th>
-        <th>Koding</th><th>Status</th>
+        <th>ID</th><th>Status</th><th>Exim</th><th>Periode</th>
+        <th>HS 2022</th><th>HS 2dg</th><th>Komoditas 5_2026</th>
+        <th>Komoditas 1_2017</th><th>Komoditas 2_2017</th><th>Komoditas 4_2024</th>
+        <th>Bentuk 1</th><th>Bentuk 2</th><th>Jenis</th>
+        <th>Bentuk 3_2026</th><th>Bentuk 4_2026</th><th>Jenis 2_2026</th><th>Bentuk 5_2026</th>
+        <th>Uraian</th><th>Uraian EN</th><th>Uraian ID/EN 2_2026</th>
+        <th>Non/Konsumsi</th><th>Olahan/N</th><th>Asal Bahan Baku</th>
+        <th>Kode Prov Asal</th><th>Provinsi Asal</th><th>Pulau Prov Asal</th>
+        <th>Kode Pelabuhan</th><th>Pelabuhan Muat/Bongkar</th><th>Moda</th>
+        <th>Kode Prov Pelabuhan</th><th>Provinsi Pelabuhan</th><th>Pulau Prov Pelabuhan</th>
+        <th>Kode Negara</th><th>Negara</th><th>Kelompok Negara</th>
+        <th>Vol (kg)</th><th>Nilai USD</th><th>Harga USD/kg</th>
+        <th>TTC</th><th>Rendemen</th><th>Setara Segar</th><th>Koding</th>
+        <th>Kurs USD</th><th>Nilai Rp</th>
     </tr></thead>
     <tbody>
     <?php foreach ($d['rows'] as $r): ?>
         <tr>
             <td><?= \KKP\View::num($r['id']); ?></td>
+            <td><span class="badge <?= ($r['status'] ?? '') === 'ready' ? 'ok' : 'warn'; ?>"><?= \KKP\View::e($r['status'] ?? '-'); ?></span></td>
+            <td><?= \KKP\View::e($r['exim_type']); ?></td>
             <td><?= \KKP\View::e($r['periode']); ?></td>
-            <td><?= \KKP\View::e($r['kode_hs']); ?></td>
-            <td><?= \KKP\View::e($r['komoditas']); ?></td>
-            <td><?= \KKP\View::e($r['kode_negara']); ?></td>
+            <td><?= \KKP\View::e($r['kode_hs_2022']); ?></td>
+            <td><?= \KKP\View::e($r['kode_hs_2dg']); ?></td>
+            <td><?= \KKP\View::e($r['komoditas_5_2026']); ?></td>
+            <td><?= \KKP\View::e($r['komoditas_1_2017']); ?></td>
+            <td><?= \KKP\View::e($r['komoditas_2_2017']); ?></td>
+            <td><?= \KKP\View::e($r['komoditas_4_2024']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk_1']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk_2']); ?></td>
+            <td><?= \KKP\View::e($r['jenis']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk_3_2026']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk_4_2026']); ?></td>
+            <td><?= \KKP\View::e($r['jenis_2_2026']); ?></td>
+            <td><?= \KKP\View::e($r['bentuk_5_2026']); ?></td>
+            <td><?= \KKP\View::e($r['uraian']); ?></td>
+            <td><?= \KKP\View::e($r['uraian_2']); ?></td>
+            <td><?= \KKP\View::e($r['uraian_id_en_2_2026']); ?></td>
+            <td><?= \KKP\View::e($r['non_konsumsi_konsumsi']); ?></td>
+            <td><?= \KKP\View::e($r['olahan_bukan']); ?></td>
+            <td><?= \KKP\View::e($r['asalbahanbaku']); ?></td>
+            <td><?= \KKP\View::e($r['kode_prov_asal']); ?></td>
+            <td><?= \KKP\View::e($r['provinsi_asal']); ?></td>
+            <td><?= \KKP\View::e($r['pulau_prov_asal']); ?></td>
+            <td><?= \KKP\View::e($r['kode_pelabuhan_muat']); ?></td>
             <td><?= \KKP\View::e($r['pelabuhan_muat_bongkar']); ?></td>
-            <td><?= \KKP\View::num($r['vol_kg'], 2); ?></td>
-            <td><?= \KKP\View::num($r['nil_usd'], 2); ?></td>
+            <td><?= \KKP\View::e($r['moda']); ?></td>
+            <td><?= \KKP\View::e($r['kode_provinsi_pelabuhan']); ?></td>
+            <td><?= \KKP\View::e($r['provinsi_pelabuhan']); ?></td>
+            <td><?= \KKP\View::e($r['pulau_prov_pelabuhan']); ?></td>
+            <td><?= \KKP\View::e($r['kode_negara']); ?></td>
+            <td><?= \KKP\View::e($r['negara']); ?></td>
+            <td><?= \KKP\View::e($r['kelompok_negara']); ?></td>
+            <td class="num"><?= \KKP\View::num($r['vol_kg'], 2); ?></td>
+            <td class="num"><?= \KKP\View::num($r['nil_usd'], 2); ?></td>
+            <td class="num"><?= $r['harga_usd_kg'] !== null ? \KKP\View::num($r['harga_usd_kg'], 4) : '-'; ?></td>
+            <td><?= \KKP\View::e($r['ttc']); ?></td>
+            <td><?= $r['rendemen'] !== null ? \KKP\View::e((string) $r['rendemen']) : '-'; ?></td>
+            <td class="num"><?= $r['setara_segar'] !== null ? \KKP\View::num($r['setara_segar'], 2) : '-'; ?></td>
             <td><?= \KKP\View::e($r['koding']); ?></td>
-            <td><span class="badge <?= $r['status'] === 'ready' ? 'ok' : 'warn'; ?>"><?= \KKP\View::e($r['status']); ?></span></td>
+            <td class="num"><?= $r['kurs_usd'] !== null ? \KKP\View::num($r['kurs_usd'], 4) : '-'; ?></td>
+            <td class="num"><?= $r['nilai_rp'] !== null ? \KKP\View::num($r['nilai_rp'], 2) : '-'; ?></td>
         </tr>
     <?php endforeach; ?>
     </tbody>

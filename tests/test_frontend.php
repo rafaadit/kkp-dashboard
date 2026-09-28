@@ -78,6 +78,7 @@ foreach ([
     '/perbandingan?mode=banding&b_flow=ekspor&b_tahun=2023&b_komoditas=Udang' => 'BPS vs TradeMap',
     '/data?limit=5' => '<h1>Data RAW EXIM</h1>',
     '/data?exim=impor&limit=2&status=needs_validation' => 'needs_validation',
+    '/data?limit=1' => 'Provinsi Asal',
 ] as $path => $needle) {
     [$c, $body] = http('GET', "$base$path", null, $cookiefn);
     check("GET $path -> 200 & konten", $c === 200 && str_contains($body, $needle), "$c " . (str_contains($body, $needle) ? '' : 'konten tak ada'));
