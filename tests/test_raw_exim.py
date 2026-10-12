@@ -40,7 +40,11 @@ def main():
     n = curl(cur, "SELECT COUNT(*) FROM raw_exim WHERE exim_type='impor'")[0][0]
     check("impor = 53.668", n == 53668, f"{n}")
     n = curl(cur, "SELECT COUNT(*) FROM raw_exim WHERE status='ready'")[0][0]
-    check("ready = 32.961 (6 periode berkurs JISDOR riil)", n == 32961, f"{n}")
+    check("ready = 242.669 (semua periode berkurs JISDOR riil)", n == 242669, f"{n}")
+    n = curl(cur, "SELECT COUNT(*) FROM raw_exim WHERE status='needs_validation'")[0][0]
+    check("needs_validation = 0 (kurs lengkap)", n == 0, f"{n}")
+    n = curl(cur, "SELECT COUNT(*) FROM raw_exim WHERE kurs_usd IS NULL OR nilai_rp IS NULL")[0][0]
+    check("kurs_usd/nilai_rp tidak ada NULL", n == 0, f"null={n}")
 
     print("\n=== 2. Identitas ekspor vs impor (single source) ===")
     n = curl(cur, "SELECT COUNT(*) FROM raw_exim WHERE exim_type='ekspor' AND id_bps_import IS NOT NULL")[0][0]
@@ -90,8 +94,8 @@ def main():
     check("placeholder 358482 sudah hilang", n == 0, f"tersisa={n}")
     n = curl(cur, "SELECT COUNT(*) FROM raw_exim r "
                   "JOIN ms_kurs k ON k.id_ms_period=r.id_ms_period "
-                  "WHERE r.status='ready' AND r.kurs_usd=k.rata_rata_kurs")[0][0]
-    check("kurs_usd == ms_kurs.rata_rata_kurs (JISDOR BI)", n == 32961, f"{n} == 32961")
+                  "WHERE r.kurs_usd=k.rata_rata_kurs")[0][0]
+    check("kurs_usd == ms_kurs.rata_rata_kurs (JISDOR BI)", n == 242669, f"{n} == 242669")
     n = curl(cur, "SELECT COUNT(DISTINCT tahun_bulan) FROM raw_exim WHERE exim_type='ekspor'")[0][0]
     check("tahun_bulan 54 periode ekspor (2022..2026-06)", n == 54, f"{n}")
     n = curl(cur, "SELECT COUNT(*) FROM raw_exim WHERE tahun_bulan NOT REGEXP '^[0-9]{6}$'")[0][0]
