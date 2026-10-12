@@ -365,6 +365,7 @@ def collect_data(conn, tahun, b1, b2):
         "month_upper": f"JAN-MAR {tahun}" if b2 <= 3
                        else f"JAN-{BULAN_ID[b2].upper()} {tahun}" if b1 == 1
                        else f"{BULAN_ID[b1].upper()[:3]}-{BULAN_ID[b2].upper()[:3]} {tahun}",
+        "month_compact": f"{S_BULAN[b1].upper()}-{S_BULAN[b2].upper()} {tahun}",
         "tot": {"eks": tot_eks, "imp": tot_imp,
                 "eks_kg": float(cur_total["eks_kg"] or 0), "imp_kg": float(cur_total["imp_kg"] or 0)},
         "prev": {"eks": prev_eks, "imp": prev_imp},
@@ -539,16 +540,16 @@ def _set_circle_total(tf, month, val):
     from pptx.oxml.ns import qn as _qn
     from pptx.util import Pt
     lines = [
-        ("TOTAL IMPOR", 560, True),
-        (month, 500, False),
-        ("USD ", 560, True),
-        (val, 1000, True),
-        ("JUTA", 640, True),
+        ("TOTAL IMPOR", 780, True),
+        (month, 780, False),
+        ("USD ", 780, True),
+        (val, 1200, True),
+        ("JUTA", 780, True),
     ]
     _set_structured(tf, "\n".join(l[0] for l in lines))
     bodypr = tf._txBody.find(_qn("a:bodyPr"))
     if bodypr is not None:
-        bodypr.set("wrap", "none")
+        bodypr.set("wrap", "square")
         bodypr.set("anchor", "ctr")
     for p, (_txt, sz, bold) in zip(tf.paragraphs, lines):
         for r in p.runs:
@@ -1194,7 +1195,7 @@ def _fill_slide9(nodes, d):
     hit = [n for n in nodes if norm(n.text) == norm("TOTAL IMPOR\nJAN-MAR 2026\nUSD \n137,55\nJUTA")]
     if len(hit) == 1:
         _set_circle_total(hit[0].shape.text_frame,
-                          d["month_upper"], juta_id(d["tot"]["imp"]))
+                          d["month_compact"], juta_id(d["tot"]["imp"]))
 
     named = [r for r in d["imp_komoditas"] if r["name"] != "Ikan Lainnya"][:6]
     lead = narr_lead(named, kt, "merupakan", "komoditas utama impor", "impor")
