@@ -541,18 +541,18 @@ def _set_circle_total(tf, month, val):
     from pptx.dml.color import RGBColor
     from pptx.util import Pt
     lines = [
-        ("TOTAL IMPOR", 780, True),
-        (month, 780, False),
-        ("USD ", 780, True),
-        (val, 1100, True),
-        ("JUTA", 780, True),
+        ("TOTAL IMPOR", 700, True),
+        (month, 700, False),
+        ("USD ", 700, True),
+        (val, 1000, True),
+        ("JUTA", 700, True),
     ]
     _set_structured(tf, "\n".join(l[0] for l in lines))
     bodypr = tf._txBody.find(_qn("a:bodyPr"))
     if bodypr is not None:
         bodypr.set("wrap", "square")
         bodypr.set("anchor", "t")
-        bodypr.set("tIns", "495300")
+        bodypr.set("tIns", "457200")
     for p, (_txt, sz, bold) in zip(tf.paragraphs, lines):
         for r in p.runs:
             r.font.size = Pt(sz / 100.0)
