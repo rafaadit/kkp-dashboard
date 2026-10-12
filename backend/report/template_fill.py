@@ -530,6 +530,32 @@ def _fit_text_to_box(body, text):
         bodypr.set("wrap", "square")
 
 
+def _set_circle_total(tf, month, val):
+    """Komposisikan ulang angka 'TOTAL IMPOR ...' di lingkaran tengah.
+    Kotak lingkaran berukuran tetap (tanpa autofit) dan periode panjang seperti
+    'JAN-JUNI 2026' di rel template bisa menyeret teks keluar lingkaran —
+    karena itu teks disusun dengan ukuran font yang lebih kecil dan tanpa
+    wrap, agar selalu muat di dalam lingkaran."""
+    from pptx.oxml.ns import qn as _qn
+    from pptx.util import Pt
+    lines = [
+        ("TOTAL IMPOR", 560, True),
+        (month, 500, False),
+        ("USD ", 560, True),
+        (val, 1000, True),
+        ("JUTA", 640, True),
+    ]
+    _set_structured(tf, "\n".join(l[0] for l in lines))
+    bodypr = tf._txBody.find(_qn("a:bodyPr"))
+    if bodypr is not None:
+        bodypr.set("wrap", "none")
+        bodypr.set("anchor", "ctr")
+    for p, (_txt, sz, bold) in zip(tf.paragraphs, lines):
+        for r in p.runs:
+            r.font.size = Pt(sz / 100.0)
+            r.font.bold = bold
+
+
 # --------------------------------------------------------------------------
 # Penjelajahan shape
 # --------------------------------------------------------------------------
@@ -1165,8 +1191,10 @@ def _fill_slide9(nodes, d):
         replace_by_ref(nodes, ref, klegend(r["name"]))
         if r["yoy"]:
             replace_by_ref(nodes, yo_lbl[i], f"{r['yoy']}\n(YoY)")
-    replace_by_ref(nodes, "TOTAL IMPOR\nJAN-MAR 2026\nUSD \n137,55\nJUTA",
-                   f"TOTAL IMPOR\n{d['month_upper']}\nUSD \n{juta_id(d['tot']['imp'])}\nJUTA")
+    hit = [n for n in nodes if norm(n.text) == norm("TOTAL IMPOR\nJAN-MAR 2026\nUSD \n137,55\nJUTA")]
+    if len(hit) == 1:
+        _set_circle_total(hit[0].shape.text_frame,
+                          d["month_upper"], juta_id(d["tot"]["imp"]))
 
     named = [r for r in d["imp_komoditas"] if r["name"] != "Ikan Lainnya"][:6]
     lead = narr_lead(named, kt, "merupakan", "komoditas utama impor", "impor")
