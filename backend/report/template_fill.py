@@ -402,6 +402,7 @@ def _set_structured(tf, text):
     from pptx.oxml.ns import qn as _qn
 
     body = tf._txBody if hasattr(tf, "_txBody") else tf._element
+    orig_len = sum(len(t.text or "") for t in body.iter(_qn("a:t")))
     paras = [p for p in body.findall(_qn("a:p"))]
     values = text.split("\n")
 
@@ -444,6 +445,89 @@ def _set_structured(tf, text):
                     br.append(copy.deepcopy(tpl))
     for p in paras[len(values):]:
         body.remove(p)
+
+    # Auto-fit: bila teks baru lebih panjang dari teks template kotaknya,
+    # kecilkan font bila melebihi lebar kotak (agar tidak "keluar kolom").
+    if orig_len and _flat_len(text) > orig_len:
+        _fit_text_to_box(body, text)
+
+
+def _flat_len(s):
+    return len(s.replace("\n", "").replace("\v", "").replace(" ", ""))
+
+
+def _fit_text_to_box(body, text):
+    """Ukur lebar teks vs lebar kotak; jika melebihi, perkecil ukuran font
+    setiap run (atau aktifkan wrap bila pengecilan tak cukup). Mengubah a:sz
+    langsung sehingga hasilnya konsisten di semua aplikasi (bukan hanya pada
+    PowerPoint yang menghitung normAutofit ulang)."""
+    from pptx.oxml.ns import qn as _qn
+    try:
+        import fitz as _fit
+    except Exception:
+        return
+
+    sp = body.getparent()
+    if sp is None:
+        return
+    cx = None
+    sp_pr = sp.find(_qn("p:spPr"))
+    if sp_pr is not None:
+        xfrm = sp_pr.find(_qn("a:xfrm"))
+        if xfrm is not None:
+            ext = xfrm.find(_qn("a:ext"))
+            if ext is not None and ext.get("cx"):
+                cx = int(ext.get("cx")) / 12700.0
+    if not cx:
+        return
+
+    bodypr = body.find(_qn("a:bodyPr"))
+    ins_l = ins_r = 7.2
+    wrap_none = False
+    if bodypr is not None:
+        if bodypr.get("lIns"):
+            ins_l = int(bodypr.get("lIns")) / 12700.0
+        if bodypr.get("rIns"):
+            ins_r = int(bodypr.get("rIns")) / 12700.0
+        wrap_none = bodypr.get("wrap") == "none"
+    avail = max(8.0, cx - ins_l - ins_r)
+
+    rpr = None
+    for p in body.findall(_qn("a:p")):
+        for r in p.findall(_qn("a:r")):
+            rpr = r.find(_qn("a:rPr"))
+            break
+        if rpr is not None:
+            break
+    if rpr is None:
+        return
+    try:
+        sz = int(rpr.get("sz") or 900)
+        fn = "hebo" if rpr.get("b") == "1" else "helv"
+        fs = sz / 100.0
+        worst = 0.0
+        for ln in text.split("\n"):
+            for seg in ln.split("\v"):
+                if seg:
+                    try:
+                        w = _fit.get_text_length(seg, fontname=fn, fontsize=fs)
+                    except Exception:
+                        w = len(seg) * fs
+                    worst = max(worst, w)
+        worst *= 0.92  # Poppins (font deck) sedikit lebih rapat dari Helvetica
+    except Exception:
+        return
+    if worst <= avail:
+        return
+    scale = avail / worst
+    if scale >= 0.6:
+        new_sz = max(50, int(round(sz * scale / 100.0) * 100))
+        for r in body.iter(_qn("a:r")):
+            rp = r.find(_qn("a:rPr"))
+            if rp is not None and rp.get("sz"):
+                rp.set("sz", str(new_sz))
+    elif not wrap_none and bodypr is not None:
+        bodypr.set("wrap", "square")
 
 
 # --------------------------------------------------------------------------
@@ -830,7 +914,7 @@ def _fill_slide3(nodes, d):
         if i >= len(d["eks_partner"]):
             break
         r = d["eks_partner"][i]
-        replace_by_ref(nodes, ref, pct_id(r["share"]))
+        replace_by_ref(nodes, ref, pct_id(r["share"], 1))
 
     named = [r for r in d["eks_partner"] if r["name"] != "Lainnya"][:5]
     lead = narr_lead(named, lambda n: pt(n), "masih menjadi", "negara utama tujuan ekspor", "ekspor")
@@ -860,7 +944,7 @@ def _fill_slide4(nodes, d):
         yo = pct_id(abs(r["yoy_p"]), 1) if r["yoy_p"] is not None else "-"
         replace_by_ref(nodes, card_ref,
                        f"{ku(r['name'])}\nUSD {juta_id(r['v'])} Juta\x0b{naik} {yo} (YoY)")
-        replace_by_ref(nodes, share_ref, pct_id(r["share"], 1 if key == "Ikan Lainnya" else 2))
+        replace_by_ref(nodes, share_ref, pct_id(r["share"], 1))
 
     named = [r for r in d["eks_komoditas"] if r["name"] != "Ikan Lainnya"][:5]
     lead = narr_lead(named, kt, "masih menjadi", "komoditas utama ekspor", "ekspor")
@@ -888,7 +972,7 @@ def _fill_slide5(nodes, d):
         yo = r["yoy"] or "-"
         replace_by_ref(nodes, card_ref,
                        f"{ku(r['name'])}\nUSD {juta_id(r['v'])} Juta\x0b{yo} (YoY)")
-        replace_by_ref(nodes, share_ref, pct_id(r["share"]))
+        replace_by_ref(nodes, share_ref, pct_id(r["share"], 1))
 
     rows5 = {
         "USD 552,77 Juta": ("Udang", 0), "USD 138,59Juta": ("Udang", 1),
@@ -924,7 +1008,7 @@ def _fill_slide5(nodes, d):
         r = rows[rank]
         _set_structured(node.shape.text_frame, f"USD {juta_id(r['v'])} Juta")
         if share_node:
-            _set_structured(share_node[0].shape.text_frame, f"({pct_id(r['share'])})")
+            _set_structured(share_node[0].shape.text_frame, f"({pct_id(r['share'], 1)})")
         if name_nodes:
             _set_structured(name_nodes[0].shape.text_frame, pt(r["name"]))
 
@@ -967,7 +1051,7 @@ def _fill_slide6(nodes, d):
         yo = r["yoy"] or "-"
         replace_by_ref(nodes, card_ref,
                        f"{pu(r['name'])}\nUSD {juta_id(r['v'])} Juta\x0b\n{yo} (YoY)")
-        replace_by_ref(nodes, share_ref, pct_id(r["share"]))
+        replace_by_ref(nodes, share_ref, pct_id(r["share"], 1))
         hit = [n for n in nodes if norm(n.text) == norm(card_ref)]
         if len(hit) != 1 or not hit[0].path_shapes:
             continue
@@ -1037,7 +1121,7 @@ def _fill_slide8(nodes, d):
             break
         r = d["imp_negara"][i]
         replace_by_ref(nodes, ref, f"{pu(r['name'], impor=True)}\n{juta_id(r['v'])} Juta")
-        replace_by_ref(nodes, shares[i], pct_id(r["share"]))
+        replace_by_ref(nodes, shares[i], pct_id(r["share"], 1))
     for i, ref in enumerate(legend):
         if i >= len(d["imp_negara"]):
             break
@@ -1073,7 +1157,7 @@ def _fill_slide9(nodes, d):
             break
         r = d["imp_komoditas"][i]
         replace_by_ref(nodes, ref, f"{klegend(r['name'])}\nUSD {juta_id(r['v'])} Juta")
-        replace_by_ref(nodes, shares[i], pct_id(r["share"]))
+        replace_by_ref(nodes, shares[i], pct_id(r["share"], 1))
     for i, ref in enumerate(legend):
         if i >= len(d["imp_komoditas"]):
             break
