@@ -538,6 +538,7 @@ def _set_circle_total(tf, month, val):
     karena itu teks disusun dengan ukuran font yang lebih kecil dan tanpa
     wrap, agar selalu muat di dalam lingkaran."""
     from pptx.oxml.ns import qn as _qn
+    from pptx.dml.color import RGBColor
     from pptx.util import Pt
     lines = [
         ("TOTAL IMPOR", 780, True),
@@ -555,6 +556,8 @@ def _set_circle_total(tf, month, val):
         for r in p.runs:
             r.font.size = Pt(sz / 100.0)
             r.font.bold = bold
+            r.font.name = "Poppins"
+            r.font.color.rgb = RGBColor(0x02, 0x15, 0x68)
 
 
 # --------------------------------------------------------------------------
