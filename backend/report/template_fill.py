@@ -36,6 +36,10 @@ BULAN_ID = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
 S_BULAN = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu",
            "Sep", "Okt", "Nov", "Des"]
 
+# Teks sisa/artefak pada template asli yang harus dibersihkan pada hasil akhir
+# (mis. huruf "cv"/"v" yang tertinggal di shape panah/kotak dekoratif).
+JUNK_TEXTS = {"v", "cv"}
+
 # Nama tampilan untuk kelompok negara (partner) — (UPPERCASE card, title-case row)
 PARTNER_UPPER = {
     "United States": "AMERIKA SERIKAT",
@@ -459,6 +463,66 @@ def replace_by_ref(nodes, ref, new):
     return False
 
 
+def replace_contains(nodes, needle, new):
+    """Ganti node yang memuat substring `needle` (untuk paragraf narasi yang
+    panjang dan tandanya khas per slide)."""
+    n = norm(needle).lower()
+    hits = [x for x in nodes if n in norm(x.text).lower()]
+    if len(hits) == 1:
+        _set_structured(hits[0].shape.text_frame, new)
+        return True
+    return False
+
+
+def id_join(parts):
+    parts = [p for p in parts if p]
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return f"{parts[0]} dan {parts[1]}"
+    return ", ".join(parts[:-1]) + ", dan " + parts[-1]
+
+
+def narr_lead(rows, namefn, verb, noun, flow):
+    """Kalimat pembuka narasi: '{nama} {verb} {noun} ... sebesar USD .. Juta,
+    diikuti ...'."""
+    if not rows:
+        return None
+    r0 = rows[0]
+    s = (f"{namefn(r0['name'])} {verb} {noun} produk perikanan Indonesia "
+         f"dengan nilai {flow} sebesar USD {juta_id(r0['v'])} Juta")
+    tail = []
+    for i, r in enumerate(rows[1:]):
+        val = f"USD {juta_id(r['v'])} Juta"
+        if i == 0:
+            tail.append(f"{namefn(r['name'])} sebesar {val}")
+        else:
+            tail.append(f"{namefn(r['name'])} ({val})")
+    if tail:
+        s += ", diikuti " + id_join(tail)
+    return s + "."
+
+
+def narr_trend(rows, namefn, tahun, flow, pada="pada", rise_verb=False):
+    """Kalimat tren: 'penurunan/kenaikan {flow} terjadi {pada} ...'."""
+    fall = [namefn(r["name"]) for r in rows if (r.get("yoy_p") or 0) < 0]
+    rise = [namefn(r["name"]) for r in rows if (r.get("yoy_p") or 0) >= 0]
+    segs = []
+    if fall:
+        segs.append(f"penurunan {flow} terjadi {pada} {id_join(fall)}")
+    if rise:
+        if rise_verb:
+            segs.append(f"{id_join(rise)} mengalami peningkatan")
+        else:
+            segs.append(f"peningkatan {flow} terjadi {pada} {id_join(rise)}")
+    if not segs:
+        return None
+    return (f"Apabila dibandingkan dengan periode yang sama tahun {tahun - 1}, "
+            + ", sedangkan ".join(segs) + ".")
+
+
 # --------------------------------------------------------------------------
 # Kata kunci pencocokan untuk data -> template
 # --------------------------------------------------------------------------
@@ -546,20 +610,21 @@ def _fill_slide1(nodes, d):
 
 def _assign_yoy(nodes, ref, new, markers):
     """Ganti teks node yoy yang berada dalam kelompok yang juga memuat salah
-    satu marker (untuk memisahkan nilai-nilai yang identik antar grup)."""
+    satu marker (untuk memisahkan nilai-nilai yang identik antar grup).
+    Memakai teks snapshot `nodes` (sebelum penggantian) dan hanya sesama
+    anak langsung pada grup yang sama agar tidak tertukar antar daftar."""
     nref = norm(ref)
+    mk = {norm(m) for m in markers}
     for n in nodes:
         if norm(n.text) != nref:
             continue
-        in_group = False
-        for g in n.path_shapes:
-            subs = {norm(x.text) for x in iter_nodes(g.shapes)}
-            if any(norm(m) in subs for m in markers):
-                in_group = True
-                break
-        if in_group:
-            _set_structured(n.shape.text_frame, new)
-            return True
+        path = n.path_shapes
+        for m in nodes:
+            if (len(m.path_shapes) == len(path)
+                    and m.path_shapes[:-1] == path[:-1]
+                    and norm(m.text) in mk):
+                _set_structured(n.shape.text_frame, new)
+                return True
     return False
 
 
@@ -575,6 +640,32 @@ def _fill_slide2(nodes, d):
         replace_by_ref(nodes, "31,4%\n(YoY)", f"{yoy['imp']}\n(YoY)")
     if yoy["ner"]:
         replace_by_ref(nodes, "3,0%\n(YoY)", f"{yoy['ner']}\n(YoY)")
+
+    def _trend_word(y):
+        return "turun" if (y or "").startswith("-") else "naik"
+
+    nar_eks = (f"NILAI EKSPOR\nProduk perikanan Indonesia mencapai\n"
+               f"USD {miliar_id(tot['eks'])} Miliar\natau {_trend_word(yoy['eks'])} "
+               f"{(yoy['eks'] or '-').lstrip('-')} (YoY)")
+    nar_imp = (f"NILAI IMPOR\nProduk perikanan Indonesia mencapai\n"
+               f"USD {miliar_id(tot['imp'])} Miliar\natau {_trend_word(yoy['imp'])} "
+               f"{(yoy['imp'] or '-').lstrip('-')} (YoY)")
+    ner_v = tot["eks"] - tot["imp"]
+    nar_ner = (f"NERACA PERDAGANGAN\nProduk perikanan mengalami \n"
+               f"{'SURPLUS' if ner_v >= 0 else 'DEFISIT'} sebesar\n"
+               f"USD {miliar_id(abs(ner_v))} Miliar\natau {_trend_word(yoy['ner'])} "
+               f"{(yoy['ner'] or '-').lstrip('-')} (YoY)")
+    # ganti ketiga paragraf narasi berdasarkan judul awalnya
+    for nd in nodes:
+        if "\n" not in nd.text or "produk perikanan" not in nd.text.lower():
+            continue
+        head = norm(nd.text).split("\n")[0]
+        if head == "NILAI EKSPOR":
+            _set_structured(nd.shape.text_frame, nar_eks)
+        elif head == "NILAI IMPOR":
+            _set_structured(nd.shape.text_frame, nar_imp)
+        elif head == "NERACA PERDAGANGAN":
+            _set_structured(nd.shape.text_frame, nar_ner)
 
 
 def _iter_chart_shapes(shapes):
@@ -648,6 +739,15 @@ def _fill_slide3(nodes, d):
         r = d["eks_partner"][i]
         replace_by_ref(nodes, ref, pct_id(r["share"]))
 
+    named = [r for r in d["eks_partner"] if r["name"] != "Lainnya"][:5]
+    lead = narr_lead(named, lambda n: pt(n), "masih menjadi", "negara utama tujuan ekspor", "ekspor")
+    if lead:
+        replace_contains(nodes, "masih menjadi negara utama tujuan ekspor", lead)
+    trend = narr_trend(named, lambda n: pt(n), d["tahun"], "ekspor",
+                       pada="pada ekspor ke", rise_verb=True)
+    if trend:
+        replace_contains(nodes, "apabila dibandingkan dengan periode yang sama tahun", trend)
+
 
 def _fill_slide4(nodes, d):
     replace_by_ref(nodes, "PERIODE JANUARI – JUNI Tahun 2026", d["period_slide"])
@@ -668,6 +768,15 @@ def _fill_slide4(nodes, d):
         replace_by_ref(nodes, card_ref,
                        f"{ku(r['name'])}\nUSD {juta_id(r['v'])} Juta\x0b{naik} {yo} (YoY)")
         replace_by_ref(nodes, share_ref, pct_id(r["share"], 1 if key == "Ikan Lainnya" else 2))
+
+    named = [r for r in d["eks_komoditas"] if r["name"] != "Ikan Lainnya"][:5]
+    lead = narr_lead(named, kt, "masih menjadi", "komoditas utama ekspor", "ekspor")
+    if lead:
+        replace_contains(nodes, "masih menjadi komoditas utama ekspor", lead)
+    trend = narr_trend(d["eks_komoditas"], kt, d["tahun"], "ekspor",
+                       pada="pada komoditas", rise_verb=True)
+    if trend:
+        replace_contains(nodes, "apabila dibandingkan dengan periode yang sama tahun", trend)
 
 
 def _fill_slide5(nodes, d):
@@ -846,6 +955,16 @@ def _fill_slide8(nodes, d):
     replace_by_ref(nodes, "TOTAL IMPOR\nJAN-JUNI 2026\nUSD \n379,65\nJUTA",
                    f"TOTAL IMPOR\n{d['month_upper']}\nUSD \n{juta_id(d['tot']['imp'])}\nJUTA")
 
+    named = [r for r in d["imp_negara"] if r["name"] != "Lainnya"][:6]
+    lead = narr_lead(named, lambda n: pt(n, impor=True), "merupakan",
+                     "negara utama asal impor", "impor")
+    if lead:
+        replace_contains(nodes, "merupakan negara utama asal impor", lead)
+    trend = narr_trend(named, lambda n: pt(n, impor=True), d["tahun"], "impor",
+                       pada="pada negara")
+    if trend:
+        replace_contains(nodes, "apabila dibandingkan dengan periode yang sama tahun", trend)
+
 
 def _fill_slide9(nodes, d):
     replace_by_ref(nodes, "PERIODE JANUARI – JUNI Tahun 2026", d["period_slide"])
@@ -871,6 +990,14 @@ def _fill_slide9(nodes, d):
             replace_by_ref(nodes, yo_lbl[i], f"{r['yoy']}\n(YoY)")
     replace_by_ref(nodes, "TOTAL IMPOR\nJAN-MAR 2026\nUSD \n137,55\nJUTA",
                    f"TOTAL IMPOR\n{d['month_upper']}\nUSD \n{juta_id(d['tot']['imp'])}\nJUTA")
+
+    named = [r for r in d["imp_komoditas"] if r["name"] != "Ikan Lainnya"][:6]
+    lead = narr_lead(named, kt, "merupakan", "komoditas utama impor", "impor")
+    if lead:
+        replace_contains(nodes, "merupakan komoditas utama impor", lead)
+    trend = narr_trend(named, kt, d["tahun"], "nilai impor", pada="pada")
+    if trend:
+        replace_contains(nodes, "apabila dibandingkan dengan periode yang sama tahun", trend)
 
 
 # --------------------------------------------------------------------------
@@ -902,4 +1029,18 @@ def fill_presentation(prs, data):
         after = {n.shape.shape_id: n.text for n in iter_nodes(slide.shapes)}
         changed = sum(1 for sid in after if norm(after[sid]) != norm(before.get(sid, "")))
         stats[idx] = changed
+    _sanitize(prs)
     return stats
+
+
+def _sanitize(prs):
+    """Bersihkan teks artefak template (mis. 'cv'/'v') pada semua slide."""
+    for slide in prs.slides:
+        for nd in iter_nodes(slide.shapes):
+            if norm(nd.text) in JUNK_TEXTS:
+                try:
+                    nd.shape.text_frame.clear()
+                except Exception:
+                    for p in nd.shape.text_frame.paragraphs:
+                        for r in list(p.runs):
+                            r._r.getparent().remove(r._r)

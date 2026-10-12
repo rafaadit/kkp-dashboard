@@ -70,6 +70,25 @@ def main():
         check("slide8 TOTAL IMPOR terisi", any("TOTAL IMPOR" in t and "JUTA" in t for t in s8),
               [t for t in s8 if "TOTAL IMPOR" in t])
 
+        s2, s3, s4, s9 = (_texts(prs.slides[i]) for i in (2, 3, 4, 9))
+        check("narasi neraca data-driven",
+              any("Produk perikanan Indonesia mencapai" in t and "3,42" in t for t in s2),
+              [t for t in s2 if "mencapai" in t])
+        check("narasi negara tujuan terisi",
+              any("masih menjadi negara utama tujuan ekspor" in t for t in s3))
+        check("narasi tren komoditas terisi",
+              any("Apabila dibandingkan dengan periode yang sama tahun" in t for t in s4))
+        joined = "\n".join(s2 + s3 + s4 + s8 + s9)
+        check("tidak ada angka narasi template basi",
+              not any(x in joined for x in ["1.010,64", "583,71", "60,12 Juta",
+                                            "2,62 Miliar", "0,38 Miliar", "Norway"]),
+              [x for x in ["1.010,64", "583,71", "60,12 Juta", "2,62 Miliar",
+                           "0,38 Miliar", "Norway"] if x in joined])
+        allt = [t for i in range(11) for t in _texts(prs.slides[i])]
+        check("tidak ada teks artefak cv/v",
+              not any(t.strip().lower() in ("cv", "v") for t in allt),
+              [t for t in allt if t.strip().lower() in ("cv", "v")])
+
     print("== validasi job tercatat ==")
     conn = get_connection()
     cur = conn.cursor()
