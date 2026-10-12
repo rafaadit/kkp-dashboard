@@ -92,6 +92,29 @@ def main():
               not any(t.strip().lower() in ("cv", "v") for t in allt),
               [t for t in allt if t.strip().lower() in ("cv", "v")])
 
+        import glob as _glob
+        import zipfile as _zip
+        from lxml import etree as _etree
+
+        _A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+        _bad = 0
+        with _zip.ZipFile(d["file"]) as _z:
+            for _n in _z.namelist():
+                if not (_n.startswith("ppt/slides/slide") and _n.endswith(".xml")):
+                    continue
+                _root = _etree.fromstring(_z.read(_n))
+                for _p in _root.iter(_A + "p"):
+                    _seen_end = False
+                    for _c in _p:
+                        _tag = _c.tag.split("}")[-1]
+                        if _tag in ("r", "br", "fld"):
+                            if _seen_end:
+                                _bad += 1
+                        elif _tag == "endParaRPr":
+                            _seen_end = True
+        check("urutan XML paragraf valid (endParaRPr di akhir)", _bad == 0,
+              "pelanggaran urutan: %d" % _bad)
+
     print("== validasi job tercatat ==")
     conn = get_connection()
     cur = conn.cursor()

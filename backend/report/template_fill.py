@@ -399,16 +399,28 @@ def _set_structured(tf, text):
                     tpl = copy.deepcopy(rpr)
                 break
         for child in list(p):
-            if child.tag in (_qn("a:r"), _qn("a:br"), _qn("a:fld"), _qn("a:br")):
+            if child.tag in (_qn("a:r"), _qn("a:br"), _qn("a:fld")):
                 p.remove(child)
+        # a:endParaRPr (jika ada) wajib tetap di akhir paragraf; run baru
+        # harus disisipkan sebelum elemen ini (urutan skema OOXML).
+        endpr = p.find(_qn("a:endParaRPr"))
+
+        def _append(el):
+            if endpr is not None:
+                endpr.addprevious(el)
+            else:
+                p.append(el)
+
         for j, seg in enumerate(segs):
-            r = etree.SubElement(p, _qn("a:r"))
+            r = p.makeelement(_qn("a:r"), {})
+            _append(r)
             if tpl is not None:
                 r.append(copy.deepcopy(tpl))
             t = etree.SubElement(r, _qn("a:t"))
             t.text = seg or " "
             if j < len(segs) - 1:
-                br = etree.SubElement(p, _qn("a:br"))
+                br = p.makeelement(_qn("a:br"), {})
+                _append(br)
                 if tpl is not None:
                     br.append(copy.deepcopy(tpl))
     for p in paras[len(values):]:
@@ -704,16 +716,86 @@ def fill_charts(slide, kind, d):
     return cnt
 
 
+def _write_ref_cache(container, values, numeric):
+    """Tulis ulang cache kategori/nilai pada <c:cat>/<c:val> tanpa menyentuh
+    formatCode/gaya agar tampilan chart tetap seperti template (fix 'grafik
+    berantakan': replace_data mengubah formatCode jadi 'General' & reset gaya)."""
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    reftag = qn("c:numRef") if numeric else qn("c:strRef")
+    cachetag = qn("c:numCache") if numeric else qn("c:strCache")
+    ref = container.find(reftag)
+    if ref is None:
+        for ch in list(container):
+            container.remove(ch)
+        ref = etree.SubElement(container, reftag)
+        f = etree.SubElement(ref, qn("c:f"))
+        f.text = "Sheet1!$A$1"
+    cache = ref.find(cachetag)
+    if cache is None:
+        cache = etree.SubElement(ref, cachetag)
+    fmt = None
+    fce = cache.find(qn("c:formatCode"))
+    if fce is not None:
+        fmt = fce.text
+    for pt in cache.findall(qn("c:pt")):
+        cache.remove(pt)
+    if numeric and fmt is None:
+        fmt = "#,##0.00"
+    # pastikan urutan: formatCode?, ptCount, pt*
+    for name in ("c:formatCode", "c:ptCount"):
+        el = cache.find(qn(name))
+        if el is not None:
+            cache.remove(el)
+    if numeric:
+        fe = etree.Element(qn("c:formatCode"))
+        fe.text = fmt
+        cache.insert(0, fe)
+    ptc = etree.Element(qn("c:ptCount"))
+    ptc.set("val", str(len(values)))
+    cache.insert(1 if numeric else 0, ptc)
+    for i, v in enumerate(values):
+        pt = etree.SubElement(cache, qn("c:pt"))
+        pt.set("idx", str(i))
+        vv = etree.SubElement(pt, qn("c:v"))
+        vv.text = ("%s" % v) if not numeric else ("%.10g" % float(v))
+
+
 def _replace_chart(chart, cats, series):
-    from pptx.chart.data import CategoryChartData
-    cd = CategoryChartData()
-    cd.categories = list(cats)
-    for name, vals in series:
-        cd.add_series(name, list(vals))
+    """Perbarui data chart dengan mengedit cache <c:cat>/<c:val> di tempat
+    (bukan chart.replace_data) agar gaya, warna, dan format angka template
+    dipertahankan."""
+    from pptx.oxml.ns import qn
+
     try:
-        chart.replace_data(cd)
+        cs = chart._chartSpace
     except Exception:
-        pass
+        cs = None
+    if cs is None:
+        return
+    sers = cs.findall(".//" + qn("c:ser"))
+    for i, ser in enumerate(sers):
+        if i >= len(series):
+            break
+        _name, vals = series[i]
+        cat = ser.find(qn("c:cat"))
+        val = ser.find(qn("c:val"))
+        if cat is not None:
+            _write_ref_cache(cat, [str(c) for c in cats], numeric=False)
+        if val is not None:
+            _write_ref_cache(val, [float(v) for v in vals], numeric=True)
+    # Lepas batas sumbu tetap (c:max / c:min) pada sumbu nilai agar skala
+    # menyesuaikan data riil. Nilai DB bisa melebihi max template sehingga
+    # batang/label tumpah keluar plot dan "menabrak elemen lain".
+    for ax in cs.findall(".//" + qn("c:valAx")):
+        scaling = ax.find(qn("c:scaling"))
+        if scaling is None:
+            continue
+        for tag in ("c:max", "c:min"):
+            el = scaling.find(qn(tag))
+            if el is not None:
+                scaling.remove(el)
 
 
 def _fill_slide3(nodes, d):
@@ -1012,24 +1094,29 @@ def fill_presentation(prs, data):
         4: _fill_slide4, 5: _fill_slide5, 6: _fill_slide6, 7: _fill_slide7,
         8: _fill_slide8, 9: _fill_slide9,
     }
+    import os as _os
+    skip_text = bool(_os.environ.get("SKIP_TEXT"))
+    skip_charts = bool(_os.environ.get("SKIP_CHARTS"))
     for idx, slide in enumerate(prs.slides):
         if idx > 9:
             break
         nodes = list(iter_nodes(slide.shapes))
         before = {n.shape.shape_id: n.text for n in nodes}
         fn = fillers.get(idx)
-        if fn:
+        if fn and not skip_text:
             fn(nodes, data)
-        if idx == 1:
-            n = fill_charts(slide, "eks_kinerja", data)
-        elif idx == 2:
-            n = fill_charts(slide, "neraca", data)
-        elif idx == 7:
-            n = fill_charts(slide, "imp_kinerja", data)
+        if not skip_charts:
+            if idx == 1:
+                n = fill_charts(slide, "eks_kinerja", data)
+            elif idx == 2:
+                n = fill_charts(slide, "neraca", data)
+            elif idx == 7:
+                n = fill_charts(slide, "imp_kinerja", data)
         after = {n.shape.shape_id: n.text for n in iter_nodes(slide.shapes)}
         changed = sum(1 for sid in after if norm(after[sid]) != norm(before.get(sid, "")))
         stats[idx] = changed
-    _sanitize(prs)
+    if not skip_text:
+        _sanitize(prs)
     return stats
 
 
