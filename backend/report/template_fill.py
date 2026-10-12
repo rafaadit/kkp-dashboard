@@ -544,14 +544,15 @@ def _set_circle_total(tf, month, val):
         ("TOTAL IMPOR", 780, True),
         (month, 780, False),
         ("USD ", 780, True),
-        (val, 1200, True),
+        (val, 1100, True),
         ("JUTA", 780, True),
     ]
     _set_structured(tf, "\n".join(l[0] for l in lines))
     bodypr = tf._txBody.find(_qn("a:bodyPr"))
     if bodypr is not None:
         bodypr.set("wrap", "square")
-        bodypr.set("anchor", "ctr")
+        bodypr.set("anchor", "t")
+        bodypr.set("tIns", "495300")
     for p, (_txt, sz, bold) in zip(tf.paragraphs, lines):
         for r in p.runs:
             r.font.size = Pt(sz / 100.0)
