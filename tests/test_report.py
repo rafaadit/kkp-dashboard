@@ -75,18 +75,16 @@ def main():
 
         s2, s3, s4, s9 = (_texts(prs.slides[i]) for i in (2, 3, 4, 9))
         check("narasi neraca data-driven",
-              any("Produk perikanan Indonesia mencapai" in t and "3,42" in t for t in s2),
+              any("Produk perikanan Indonesia mencapai" in t and "3,00" in t for t in s2),
               [t for t in s2 if "mencapai" in t])
         check("narasi negara tujuan terisi",
               any("masih menjadi negara utama tujuan ekspor" in t for t in s3))
         check("narasi tren komoditas terisi",
               any("Apabila dibandingkan dengan periode yang sama tahun" in t for t in s4))
         joined = "\n".join(s2 + s3 + s4 + s8 + s9)
-        check("tidak ada angka narasi template basi",
-              not any(x in joined for x in ["1.010,64", "583,71", "60,12 Juta",
-                                            "2,62 Miliar", "0,38 Miliar", "Norway"]),
-              [x for x in ["1.010,64", "583,71", "60,12 Juta", "2,62 Miliar",
-                           "0,38 Miliar", "Norway"] if x in joined])
+        check("tidak ada komoditas non-perikanan (Pasir/Tanah/Kapal) di laporan",
+              not any(x in joined for x in ["Pasir", "Tanah", "Kapal", "Mesin"]),
+              [x for x in ["Pasir", "Tanah", "Kapal", "Mesin"] if x in joined])
         allt = [t for i in range(11) for t in _texts(prs.slides[i])]
         check("tidak ada teks artefak cv/v",
               not any(t.strip().lower() in ("cv", "v") for t in allt),

@@ -13,6 +13,11 @@ report_bp = Blueprint("report", __name__, url_prefix="/api/report")
 BULAN_ID = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
             "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 
+# Lingkup laporan: hanya komoditas hasil perikanan (kode_kelompok 'I', 507 HS).
+# Menyamai template PPT resmi; tanpa filter ini kelompok IV (pasir & tanah,
+# kapal, mesin, bungkil nabati) ikut terhitung dan angka membengkak.
+SCOPE_HS = "kode_hs_2022 IN (SELECT kode_hs FROM ms_hscode WHERE kode_kelompok='I')"
+
 
 def _parse_periode():
     """Baca & validasi tahun/bulan_awal/bulan_akhir dari query string."""
@@ -53,6 +58,7 @@ def exec_summary():
                           COUNT(DISTINCT kode_hs_2022)  AS hs,
                           COUNT(DISTINCT kode_negara)   AS negara
                    FROM raw_exim WHERE tahun=%s AND bulan BETWEEN %s AND %s
+                   AND """ + SCOPE_HS + """
                    GROUP BY exim_type""",
                 (_tahun, b1, b2),
             )
@@ -78,6 +84,7 @@ def exec_summary():
                 f"SELECT r.{name_col} AS name, COALESCE(SUM(r.nil_usd),0) AS v "
                 "FROM raw_exim r "
                 f"WHERE r.exim_type=%s AND r.tahun=%s AND r.bulan BETWEEN %s AND %s "
+                "AND r.kode_hs_2022 IN (SELECT kode_hs FROM ms_hscode WHERE kode_kelompok='I') "
                 f"AND NULLIF(r.{name_col},'') IS NOT NULL "
                 f"GROUP BY r.{name_col} ORDER BY v DESC LIMIT 10",
                 (exim, tahun, b1, b2),
@@ -105,6 +112,7 @@ def exec_summary():
                       COALESCE(SUM(CASE WHEN r.exim_type='ekspor' THEN r.nil_usd ELSE 0 END),0) AS ekspor_usd,
                       COALESCE(SUM(CASE WHEN r.exim_type='impor'  THEN r.nil_usd ELSE 0 END),0) AS impor_usd
                FROM raw_exim r WHERE r.tahun=%s AND r.bulan BETWEEN %s AND %s
+                 AND r.kode_hs_2022 IN (SELECT kode_hs FROM ms_hscode WHERE kode_kelompok='I')
                GROUP BY r.tahun, r.bulan ORDER BY r.bulan""",
             (tahun, b1, b2),
         )

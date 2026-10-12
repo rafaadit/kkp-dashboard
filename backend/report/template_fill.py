@@ -161,6 +161,17 @@ def cagr(vals):
 
 
 # --------------------------------------------------------------------------
+# Lingkup laporan
+# --------------------------------------------------------------------------
+# Laporan hanya mencakup komoditas HASIL PERIKANAN, yaitu kode_kelompok 'I'
+# pada ms_hscode (507 HS 2022, sesuai footer laporan). Tanpa filter ini,
+# kode_kelompok IV (pasir & tanah, kapal, mesin, bungkil minyak nabati, dsb.)
+# ikut terhitung sehingga volume ekspor/impor 2024+ menggelembung beberapa kali
+# lipat -> batang grafik meninggi dan "menabrak elemen lain" di PPT.
+SCOPE_HS = "kode_hs_2022 IN (SELECT kode_hs FROM ms_hscode WHERE kode_kelompok='I')"
+
+
+# --------------------------------------------------------------------------
 # Pengumpulan data
 # --------------------------------------------------------------------------
 def collect_data(conn, tahun, b1, b2):
@@ -172,7 +183,7 @@ def collect_data(conn, tahun, b1, b2):
         cur.execute(sql, params)
         return cur.fetchall()
 
-    per = q("""
+    per = q(f"""
         SELECT tahun,
                SUM(CASE WHEN exim_type='ekspor' THEN nil_usd ELSE 0 END) eks_usd,
                SUM(CASE WHEN exim_type='impor'  THEN nil_usd ELSE 0 END) imp_usd,
@@ -180,6 +191,7 @@ def collect_data(conn, tahun, b1, b2):
                SUM(CASE WHEN exim_type='impor'  THEN vol_kg ELSE 0 END) imp_kg
         FROM raw_exim
         WHERE bulan BETWEEN %s AND %s AND tahun BETWEEN 2022 AND %s
+          AND {SCOPE_HS}
         GROUP BY tahun ORDER BY tahun
     """, (b1, b2, tahun))
     if not per:
@@ -189,46 +201,53 @@ def collect_data(conn, tahun, b1, b2):
           "SUM(CASE WHEN exim_type='impor' THEN nil_usd ELSE 0 END) imp, " \
           "SUM(CASE WHEN exim_type='ekspor' THEN vol_kg ELSE 0 END) eks_kg, " \
           "SUM(CASE WHEN exim_type='impor' THEN vol_kg ELSE 0 END) imp_kg " \
-          "FROM raw_exim WHERE tahun=%s AND bulan BETWEEN %s AND %s"
+          "FROM raw_exim WHERE tahun=%s AND bulan BETWEEN %s AND %s AND " + SCOPE_HS
     cur_total = q(rot, (tahun, b1, b2))[0]
     cur_total_prev = q(rot, (tahun - 1, b1, b2))[0]
 
     # komposisi ekspor: (kelompok_negara x komoditas_5_2026)
-    ek = q("""
+    ek = q(f"""
         SELECT kelompok_negara, komoditas_5_2026, SUM(nil_usd) v
         FROM raw_exim WHERE exim_type='ekspor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(kelompok_negara,'') IS NOT NULL AND NULLIF(komoditas_5_2026,'') IS NOT NULL
         GROUP BY kelompok_negara, komoditas_5_2026
     """, (tahun, b1, b2))
-    ek_prev = q("""
+    ek_prev = q(f"""
         SELECT kelompok_negara, SUM(nil_usd) v FROM raw_exim
         WHERE exim_type='ekspor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(kelompok_negara,'') IS NOT NULL GROUP BY kelompok_negara
     """, (tahun - 1, b1, b2))
-    kprev = q("""
+    kprev = q(f"""
         SELECT komoditas_5_2026, SUM(nil_usd) v FROM raw_exim
         WHERE exim_type='ekspor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(komoditas_5_2026,'') IS NOT NULL GROUP BY komoditas_5_2026
     """, (tahun - 1, b1, b2))
 
-    inm = q("""
+    inm = q(f"""
         SELECT kelompok_negara, SUM(nil_usd) v FROM raw_exim
         WHERE exim_type='impor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(kelompok_negara,'') IS NOT NULL GROUP BY kelompok_negara
     """, (tahun, b1, b2))
-    imp_prev = q("""
+    imp_prev = q(f"""
         SELECT kelompok_negara, SUM(nil_usd) v FROM raw_exim
         WHERE exim_type='impor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(kelompok_negara,'') IS NOT NULL GROUP BY kelompok_negara
     """, (tahun - 1, b1, b2))
-    iko = q("""
+    iko = q(f"""
         SELECT komoditas_5_2026, SUM(nil_usd) v FROM raw_exim
         WHERE exim_type='impor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(komoditas_5_2026,'') IS NOT NULL GROUP BY komoditas_5_2026
     """, (tahun, b1, b2))
-    iko_prev = q("""
+    iko_prev = q(f"""
         SELECT komoditas_5_2026, SUM(nil_usd) v FROM raw_exim
         WHERE exim_type='impor' AND tahun=%s AND bulan BETWEEN %s AND %s
+          AND {SCOPE_HS}
           AND NULLIF(komoditas_5_2026,'') IS NOT NULL GROUP BY komoditas_5_2026
     """, (tahun - 1, b1, b2))
 
@@ -785,17 +804,9 @@ def _replace_chart(chart, cats, series):
             _write_ref_cache(cat, [str(c) for c in cats], numeric=False)
         if val is not None:
             _write_ref_cache(val, [float(v) for v in vals], numeric=True)
-    # Lepas batas sumbu tetap (c:max / c:min) pada sumbu nilai agar skala
-    # menyesuaikan data riil. Nilai DB bisa melebihi max template sehingga
-    # batang/label tumpah keluar plot dan "menabrak elemen lain".
-    for ax in cs.findall(".//" + qn("c:valAx")):
-        scaling = ax.find(qn("c:scaling"))
-        if scaling is None:
-            continue
-        for tag in ("c:max", "c:min"):
-            el = scaling.find(qn(tag))
-            if el is not None:
-                scaling.remove(el)
+    # Batas sumbu (c:max/c:min) template DIPERTAHANKAN: dengan data yang sudah
+    # benar (hanya kelompok perikanan) nilainya muat di dalam skala template,
+    # sehingga grafik tampil sama seperti desain aslinya.
 
 
 def _fill_slide3(nodes, d):
