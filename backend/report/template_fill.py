@@ -584,13 +584,13 @@ def _fill_slide1(nodes, d):
             val_refs = ["Amerika Serikat\n1.010,64 Juta", "Tiongkok\n583,71 Juta",
                         "ASEAN\n416,48 Juta", "Jepang\n286,53 Juta", "UNI EROPA\n216,83 Juta"]
             yoy_refs = ["0,7%", "8,8%", "12,7%", "0,03%", "3,7%"]
-            rows = d["eks_partner"][:5]
+            rows = [r for r in d["eks_partner"] if r["name"] != "Lainnya"][:5]
             is_nation = True
         else:
             val_refs = ["Udang\n872,71 Juta", "TCT\n490,44 Juta", "CSG\n433,49 Juta",
                         "Rajungan-Kepiting\n294,65 Juta", "Rumput Laut\n156,25 Juta"]
             yoy_refs = ["6,4%", "0,7%", "14,1 %", "15,3%", "7,6%"]
-            rows = d["eks_komoditas"][:5]
+            rows = [r for r in d["eks_komoditas"] if r["name"] != "Ikan Lainnya"][:5]
             is_nation = False
         if is_nation:
             for i, ref in enumerate(val_refs):

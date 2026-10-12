@@ -67,6 +67,9 @@ def main():
         check("slide1 chart 5 kategori s/d 2026",
               list(ch1.plots[0].categories)[-1:] == ["2026"] and len(ch1.plots[0].categories) == 5,
               str(list(ch1.plots[0].categories)))
+        check("slide1 top-5 tanpa catch-all",
+              not any(t.split("\n")[0] in ("Lainnya", "Ikan Lainnya") for t in s1),
+              [t for t in s1 if t.split("\n")[0] in ("Lainnya", "Ikan Lainnya")])
         check("slide8 TOTAL IMPOR terisi", any("TOTAL IMPOR" in t and "JUTA" in t for t in s8),
               [t for t in s8 if "TOTAL IMPOR" in t])
 
