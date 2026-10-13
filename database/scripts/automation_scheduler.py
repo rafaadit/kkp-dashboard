@@ -46,6 +46,7 @@ def dispatch(conn, job):
             partner=params.get("partner"),
             source=params.get("source", "TradeMap ITC"),
             fixture=params.get("fixture"),
+            web=bool(params.get("web", False)),
             process=bool(params.get("process", True)),
             commit=True,
             job_id=job["id"],

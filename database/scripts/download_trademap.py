@@ -31,6 +31,8 @@ def main():
     ap.add_argument("--partner", default=None, help="kode partner (opsional)")
     ap.add_argument("--source", default="TradeMap ITC", help="nama sumber")
     ap.add_argument("--fixture", default=None, help="file lokal sebagai pengganti unduhan (uji tanpa API key)")
+    ap.add_argument("--web", action="store_true",
+                    help="pakai robot web legacy.trademap.org (TANPA API key; partner pakai kode numerik TradeMap)")
     ap.add_argument("--no-process", action="store_true", help="hanya unduh; lewati pipeline pemrosesan")
     ap.add_argument("--no-commit", action="store_true", help="dry-run pipeline (hanya unduh yang dicatat ke DB)")
     ap.add_argument("--json", action="store_true", help="cetak ringkasan JSON")
@@ -39,7 +41,8 @@ def main():
     dl = TradeMapDownloader()
     try:
         res = dl.run(flow=args.flow, year=args.year, partner=args.partner,
-                     source=args.source, fixture=args.fixture,
+                     source=("TradeMap Web" if args.web else args.source),
+                     fixture=args.fixture, web=args.web,
                      process=not args.no_process, commit=not args.no_commit)
     finally:
         dl.close()

@@ -107,9 +107,12 @@ class TradeMapDownloader:
 
     # ------------------------------------------------------------------
     def run(self, flow="Export", year=None, partner=None, source="TradeMap ITC",
-            fixture=None, process=True, commit=False, job_id=None):
+            fixture=None, process=True, commit=False, job_id=None, web=False):
         """
         Jalankan satu sesi unduhan (+ opsional proses).
+
+        web=True memakai robot webscraper (legacy.trademap.org) TANPA API key;
+        jika web=False, dibutuhkan TRADEMAP_API_KEY (atau --fixture).
 
         Return: dict {ok, job_id, download_log_id, file_path, file_hash,
                       file_size, message}.
@@ -123,12 +126,22 @@ class TradeMapDownloader:
                 shutil.copyfile(fixture, out)
                 url = os.path.abspath(fixture)
             else:
-                api_key = os.environ.get("TRADEMAP_API_KEY", "")
-                if not api_key:
-                    raise DownloadError("TRADEMAP_API_KEY kosong (isi di .env atau gunakan --fixture)")
-                out = self.target_path(flow, year, partner)
-                url = self.build_url(self.api_base(), api_key, flow, year, partner)
-                self.fetch(url, out)
+                if web:
+                    from backend.trademap.webscraper import TradeMapWebSession
+                    from backend.trademap import webscraper
+
+                    sess = TradeMapWebSession()
+                    out, _grid = webscraper.run(flow=flow, partner=partner,
+                                                download_dir=self.download_dir(),
+                                                session=sess)
+                    url = out
+                else:
+                    api_key = os.environ.get("TRADEMAP_API_KEY", "")
+                    if not api_key:
+                        raise DownloadError("TRADEMAP_API_KEY kosong (isi di .env atau gunakan --fixture atau --web)")
+                    out = self.target_path(flow, year, partner)
+                    url = self.build_url(self.api_base(), api_key, flow, year, partner)
+                    self.fetch(url, out)
             size = os.path.getsize(out)
             fhash = _sha256(out)
             self._mark_downloaded(cur, dl_id, out, size, fhash)
