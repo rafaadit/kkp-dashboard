@@ -26,6 +26,9 @@ data/
 *.pptx
 raw_data/
 
+# Catatan sesi kerja pribadi
+/.summary
+
 # OS / editor
 .DS_Store
 Thumbs.db
