@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""PHASE 12 — Test banding industri BPS vs TradeMap (tingkat bab HS, data nyata).
+
+Mengandalkan data nyata yang sudah termuat: TradeMap bab 03 (Export/Import)
+dan raw_exim BPS. Beberapa asersi dibuat toleran terhadap variasi kecil data.
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from backend.api.app import create_app
+
+PASS = 0
+FAIL = 0
+
+
+def check(name, cond, detail=""):
+    global PASS, FAIL
+    if cond:
+        PASS += 1
+        print(f"  PASS  {name}")
+    else:
+        FAIL += 1
+        print(f"  FAIL  {name}  {detail}")
+
+
+def main():
+    app = create_app()
+    app.config["TESTING"] = True
+    c = app.test_client()
+    tok = c.post("/api/auth/login", json={"email": "admin@kkp.local", "password": "admin123"}).get_json()["token"]
+    H = {"Authorization": f"Bearer {tok}"}
+
+    print("== /api/trademap/banding_industri (ekspor, bab 03) ==")
+    r = c.get("/api/trademap/banding_industri?flow=ekspor", headers=H)
+    check("ekspor 200", r.status_code == 200, r.get_data(as_text=True)[:150])
+    d = r.get_json()
+    check("ref tahun wajar (>=2024)", d["ref_tahun"] >= 2024, str(d["ref_tahun"]))
+    check("hs 03 hasil perikanan", d["hs"] == "03" and d["hs_label"] == "hasil perikanan", str(d["hs"]))
+    check("seri tahun banyak (>=5)", len(d["seri_tahun"]) >= 5, str(len(d["seri_tahun"])))
+    ref = next((s for s in d["seri_tahun"] if s["tahun"] == d["ref_tahun"]), None)
+    check("baris ref punya bps+tm", ref and ref["bps_nilai_usd"] and ref["trademap_nilai_usd"], str(ref))
+    check("rasio ref wajar (0.5-1.5)", ref and ref["rasio"] and 0.5 <= ref["rasio"] <= 1.5, str(ref and ref["rasio"]))
+    check("ringkasan konsisten ref", d["ringkasan"]["rasio"] and 0.5 <= d["ringkasan"]["rasio"] <= 1.5,
+          {k: d["ringkasan"][k] for k in ("tahun", "rasio", "selisih_persen")})
+    check("komoditas BPS non-kosong", d["bps"]["per_komoditas"], str(d["bps"]["per_komoditas"][:2]))
+    names = [k["komoditas"] for k in d["bps"]["per_komoditas"]]
+    check("ada Udang (ekspor)", "Udang" in names, str(names[:4]))
+    check("porsi terisi", all(k["porsi_persen"] is not None for k in d["bps"]["per_komoditas"]), str(d["bps"]["per_komoditas"][:1]))
+    nar = d["narasi"]
+    check("narasi sebut 2 sumber", "TradeMap" in nar and "BPS" in nar, nar[:200])
+    check("narasi angka nyata (4," in nar or "3," in nar or "1," in nar, nar[:200])
+    check("catatan terpisah", any("terpisah" in k for k in d["catatan"]), str(d["catatan"]))
+
+    print("== filter tahun ==")
+    r = c.get("/api/trademap/banding_industri?flow=ekspor&tahun=2024", headers=H)
+    check("tahun 2024 -> ref 2024", r.status_code == 200 and r.get_json()["ref_tahun"] == 2024, r.get_data(as_text=True)[:150])
+
+    print("== /api/trademap/banding_industri (impor, bab 03) ==")
+    r = c.get("/api/trademap/banding_industri?flow=impor", headers=H)
+    check("impor 200", r.status_code == 200, r.get_data(as_text=True)[:150])
+    di = r.get_json()
+    check("impor ref wajar (>=2024)", di["ref_tahun"] >= 2024, str(di["ref_tahun"]))
+    ri = di["ringkasan"]
+    check("impor bps+tm terisi", ri["bps_nilai_usd"] and ri["trademap_nilai_usd"], {k: ri[k] for k in ("bps_nilai_usd", "trademap_nilai_usd")})
+    check("impor rasio wajar (0.5-1.5)", ri["rasio"] and 0.5 <= ri["rasio"] <= 1.5, str(ri["rasio"]))
+    print("  INFO  ekspor %s rasio %s | impor %s rasio %s"
+          % (d["ref_tahun"], d["ringkasan"]["rasio"], di["ref_tahun"], ri["rasio"]))
+
+    print("== proteksi & validasi ==")
+    check("flow salah 400", c.get("/api/trademap/banding_industri?flow=ngawur", headers=H).status_code == 400)
+    check("hs salah 400", c.get("/api/trademap/banding_industri?hs=abc", headers=H).status_code == 400)
+    check("tanpa token 401", c.get("/api/trademap/banding_industri").status_code == 401)
+
+    print()
+    print(f"RESULT: {PASS} passed, {FAIL} failed")
+    return 1 if FAIL else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -107,12 +107,15 @@ class TradeMapDownloader:
 
     # ------------------------------------------------------------------
     def run(self, flow="Export", year=None, partner=None, source="TradeMap ITC",
-            fixture=None, process=True, commit=False, job_id=None, web=False):
+            fixture=None, process=True, commit=False, job_id=None, web=False,
+            product="TOTAL"):
         """
         Jalankan satu sesi unduhan (+ opsional proses).
 
         web=True memakai robot webscraper (legacy.trademap.org) TANPA API key;
         jika web=False, dibutuhkan TRADEMAP_API_KEY (atau --fixture).
+        product: kode HS untuk robot web (mis. "TOTAL", "03"); API key FAKTUR
+        selalu "TOTAL".
 
         Return: dict {ok, job_id, download_log_id, file_path, file_hash,
                       file_size, message}.
@@ -132,6 +135,7 @@ class TradeMapDownloader:
 
                     sess = TradeMapWebSession()
                     out, _grid = webscraper.run(flow=flow, partner=partner,
+                                                product=product,
                                                 download_dir=self.download_dir(),
                                                 session=sess)
                     url = out

@@ -57,6 +57,64 @@ if ($mode === 'banding') {
         <li class="muted"><small><?= \KKP\View::e($keterangan); ?></small></li>
     <?php endforeach; ?>
 </ul>
+<?php
+    // banding tingkat bab HS (data nyata TradeMap vs BPS)
+    $bi = null;
+    try {
+        [$bi_st, $bi] = $session->api()->get('/api/trademap/banding_industri?' . http_build_query(['flow' => $b_flow, 'tahun' => $b_tahun]));
+        if ($bi_st !== 200) { $bi = null; }
+    } catch (\Throwable $e) { $bi = null; }
+?>
+<?php if ($bi): ?>
+<section class="card">
+    <h3>Banding tingkat bab HS — <?= \KKP\View::e($bi['hs_label']); ?> (HS <?= \KKP\View::e($bi['hs']); ?>)</h3>
+    <div class="grid-3">
+        <div class="kpi"><div class="k">BPS/Bea Cukai — <?= \KKP\View::e($bi['ref_tahun']); ?></div>
+            <div class="v">USD <?= \KKP\View::num($bi['ringkasan']['bps_nilai_usd'] / 1e9, 2); ?> miliar</div></div>
+        <div class="kpi"><div class="k">TradeMap (ITC) — <?= \KKP\View::e($bi['ref_tahun']); ?></div>
+            <div class="v">USD <?= \KKP\View::num($bi['ringkasan']['trademap_nilai_usd'] / 1e9, 2); ?> miliar</div></div>
+        <div class="kpi"><div class="k">Rasio TM/BPS</div>
+            <div class="v"><?= $bi['ringkasan']['rasio'] !== null ? \KKP\View::num($bi['ringkasan']['rasio'], 2) . 'x' : '-'; ?></div>
+            <div class="muted">selisih <?= $bi['ringkasan']['selisih_persen'] !== null ? \KKP\View::num($bi['ringkasan']['selisih_persen'], 2) . '%' : '-'; ?></div></div>
+    </div>
+    <table class="tbl">
+        <thead><tr><th>Tahun</th><th>BPS (USD)</th><th>BPS (kg)</th><th>TradeMap (USD)</th><th>Rasio</th><th>Selisih %</th></tr></thead>
+        <tbody>
+        <?php foreach ($bi['seri_tahun'] as $s): ?>
+            <tr>
+                <td><?= (int) $s['tahun']; ?></td>
+                <td><?= $s['bps_nilai_usd'] !== null ? \KKP\View::num($s['bps_nilai_usd'], 0) : '-'; ?></td>
+                <td><?= $s['bps_volume_kg'] !== null ? \KKP\View::num($s['bps_volume_kg'], 0) : '-'; ?></td>
+                <td><?= $s['trademap_nilai_usd'] !== null ? \KKP\View::num($s['trademap_nilai_usd'], 0) : '-'; ?></td>
+                <td><?= $s['rasio'] !== null ? \KKP\View::num($s['rasio'], 2) . 'x' : '-'; ?></td>
+                <td><?= $s['selisih_persen'] !== null ? \KKP\View::num($s['selisih_persen'], 2) . '%' : '-'; ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php if ($bi['bps']['per_komoditas']): ?>
+    <table class="tbl">
+        <thead><tr><th>Komoditas (BPS <?= \KKP\View::e($bi['ref_tahun']); ?>)</th><th>Nilai (USD)</th><th>Volume (kg)</th><th>Porsi %</th></tr></thead>
+        <tbody>
+        <?php foreach ($bi['bps']['per_komoditas'] as $k): ?>
+            <tr>
+                <td><?= \KKP\View::e($k['komoditas']); ?></td>
+                <td><?= \KKP\View::num($k['nilai_usd'], 0); ?></td>
+                <td><?= \KKP\View::num($k['volume_kg'], 0); ?></td>
+                <td><?= $k['porsi_persen'] !== null ? \KKP\View::num($k['porsi_persen'], 1) . '%' : '-'; ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php endif; ?>
+    <p><?= \KKP\View::e($bi['narasi']); ?></p>
+    <ul>
+        <?php foreach ($bi['catatan'] as $keterangan): ?>
+            <li class="muted"><small><?= \KKP\View::e($keterangan); ?></small></li>
+        <?php endforeach; ?>
+    </ul>
+</section>
+<?php endif; ?>
 <section class="grid-3">
     <div class="card kpi">
         <div class="k">BPS/Bea Cukai — <?= \KKP\View::e($d['flow']); ?></div>

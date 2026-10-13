@@ -13,6 +13,10 @@ Contoh:
   .venv/bin/python database/scripts/download_trademap.py --fixture tests/fixtures/trademap_sample.csv \
       --no-process --commit
   .venv/bin/python database/scripts/download_trademap.py --fixture x.csv --commit
+  # robot tanpa API key (data nyata, bab besar):
+  .venv/bin/python database/scripts/download_trademap.py --web --flow Import --commit
+  # robot bab perikanan khusus (impor bab 03 -> baris detail HS4/HS6):
+  .venv/bin/python database/scripts/download_trademap.py --web --flow Import --product 03 --commit
 """
 import argparse
 import json
@@ -33,6 +37,8 @@ def main():
     ap.add_argument("--fixture", default=None, help="file lokal sebagai pengganti unduhan (uji tanpa API key)")
     ap.add_argument("--web", action="store_true",
                     help="pakai robot web legacy.trademap.org (TANPA API key; partner pakai kode numerik TradeMap)")
+    ap.add_argument("--product", default="TOTAL",
+                    help="kode HS untuk robot web (mis. TOTAL, 03, 030617); hanya dipakai saat --web")
     ap.add_argument("--no-process", action="store_true", help="hanya unduh; lewati pipeline pemrosesan")
     ap.add_argument("--no-commit", action="store_true", help="dry-run pipeline (hanya unduh yang dicatat ke DB)")
     ap.add_argument("--json", action="store_true", help="cetak ringkasan JSON")
@@ -43,6 +49,7 @@ def main():
         res = dl.run(flow=args.flow, year=args.year, partner=args.partner,
                      source=("TradeMap Web" if args.web else args.source),
                      fixture=args.fixture, web=args.web,
+                     product=args.product,
                      process=not args.no_process, commit=not args.no_commit)
     finally:
         dl.close()

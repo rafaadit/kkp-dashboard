@@ -247,3 +247,181 @@ def banding():
         "banding_komoditas": banding_komoditas,
         "banding_negara": banding_negara,
     })
+
+
+def _idn(v, dec=2):
+    """Format angka desimal ala Indonesia (koma desimal, titik ribuan)."""
+    s = f"{v:,.{dec}f}"
+    return s.replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+
+def _fmt_usd_miliar(usd, dec=2):
+    """Format nilai USD (mentah) menjadi 'US$X,XX miliar'."""
+    return f"US${_idn(float(usd) / 1e9, dec)} miliar"
+
+
+def _fmt_usd_juta(usd, dec=1):
+    return f"US${_idn(float(usd) / 1e6, dec)} juta"
+
+
+@trademap_bp.get("/banding_industri")
+@require_perm("trademap.view")
+def banding_industri():
+    """Bandingkan BPS vs TradeMap pada TINGKAT BAB HS (HS2), dengan narasi.
+
+    TradeMap hanya tersedia pada tingkat bab (HS2) sehingga pembandingan
+    dilakukan pada agregat bab; rincian per komoditas hanya dari BPS.
+    Kedua sumber dijaga terpisah (tidak digabung).
+    """
+    flow = (request.args.get("flow") or "ekspor").lower()
+    if flow not in _FLOW_TM:
+        raise ApiError("flow harus ekspor|impor")
+    tm_flow = _FLOW_TM[flow]
+
+    hs = (request.args.get("hs") or request.args.get("bab") or "03").strip()
+    if not re.fullmatch(r"\d{2}(?:\d{4})?", hs):
+        raise ApiError("hs harus kode bab HS 2 digit (mis. 03) atau 6 digit")
+    hs2 = hs[:2]
+
+    tahun = request.args.get("tahun")
+    tahun = int(tahun) if tahun and str(tahun).strip() else None
+    if tahun is not None and not (1900 <= tahun <= 2100):
+        raise ApiError("tahun tidak valid")
+
+    bps_rows = _row(
+        "SELECT tahun, COALESCE(SUM(nil_usd),0) AS nilai_usd, COALESCE(SUM(vol_kg),0) AS volume_kg "
+        "FROM raw_exim WHERE exim_type=%s AND kode_hs_2dg=%s GROUP BY tahun ORDER BY tahun",
+        [flow, hs2],
+    )
+    # TradeMap: textur prefer rincian kode HS di bawah bab (6 digit), fallback baris bab "03".
+    tm_detail = _row(
+        "SELECT year AS tahun, COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code LIKE %s "
+        "AND CHAR_LENGTH(product_code) > 2 GROUP BY year ORDER BY year",
+        [tm_flow, hs2 + "%"],
+    )
+    tm_compact = _row(
+        "SELECT year AS tahun, COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code=%s "
+        "GROUP BY year ORDER BY year",
+        [tm_flow, hs2],
+    )
+    tm_rows = tm_compact if tm_compact else tm_detail
+
+    bps_by = {r["tahun"]: r for r in bps_rows}
+    tm_by = {r["tahun"]: r for r in tm_rows}
+    seri = []
+    for y in sorted(set(bps_by) | set(tm_by)):
+        b = bps_by.get(y)
+        t = tm_by.get(y)
+        row = {
+            "tahun": y,
+            "bps_nilai_usd": b["nilai_usd"] if b else None,
+            "bps_volume_kg": b["volume_kg"] if b else None,
+            "trademap_nilai_usd": t["nilai_usd"] if t else None,
+        }
+        if b and t and b["nilai_usd"]:
+            row["rasio"] = round(t["nilai_usd"] / b["nilai_usd"], 4)
+            row["selisih_persen"] = round(100 * (t["nilai_usd"] - b["nilai_usd"]) / b["nilai_usd"], 2)
+        else:
+            row["rasio"] = None
+            row["selisih_persen"] = None
+        seri.append(row)
+
+    overlap = sorted(set(bps_by) & set(tm_by))
+    if not overlap:
+        if not tm_by:
+            raise ApiError(
+                f"data TradeMap untuk flow {flow} belum ada; jalankan dulu "
+                f"database/scripts/download_trademap.py --web --flow {tm_flow.title()}")
+        raise ApiError("tidak ada tahun yang punya data BPS dan TradeMap sekaligus untuk bab %s" % hs2)
+    ref = tahun if (tahun in overlap) else overlap[-1]
+
+    # rincian per komoditas (BPS) pada tahun referensi
+    bps_total_ref = bps_by.get(ref, {})
+    bps_kom = _row(
+        "SELECT komoditas_5_2026 AS komoditas, COALESCE(SUM(nil_usd),0) AS nilai_usd, "
+        "COALESCE(SUM(vol_kg),0) AS volume_kg "
+        "FROM raw_exim WHERE exim_type=%s AND kode_hs_2dg=%s AND tahun=%s "
+        "AND NULLIF(komoditas_5_2026,'') IS NOT NULL "
+        "GROUP BY komoditas_5_2026 ORDER BY nilai_usd DESC LIMIT 12",
+        [flow, hs2, ref],
+    )
+    total_ref = bps_total_ref.get("nilai_usd") or 0
+    for r in bps_kom:
+        r["porsi_persen"] = round(100 * r["nilai_usd"] / total_ref, 1) if total_ref else None
+
+    tm_ref = tm_by.get(ref, {})
+    bps_ref = bps_by.get(ref, {})
+    bps_prev = bps_by.get(ref - 1, {})
+    tm_prev = tm_by.get(ref - 1, {})
+    ringkasan = {
+        "tahun": ref,
+        "tahun_sebelumnya": ref - 1,
+        "bps_nilai_usd": bps_ref.get("nilai_usd"),
+        "trademap_nilai_usd": tm_ref.get("nilai_usd"),
+        "rasio": round(tm_ref["nilai_usd"] / bps_ref["nilai_usd"], 4) if bps_ref.get("nilai_usd") else None,
+        "selisih_persen": round(100 * (tm_ref["nilai_usd"] - bps_ref["nilai_usd"]) / bps_ref["nilai_usd"], 2)
+        if bps_ref.get("nilai_usd") else None,
+        "yoy_bps_persen": round(100 * (bps_ref["nilai_usd"] - bps_prev["nilai_usd"]) / bps_prev["nilai_usd"], 2)
+        if bps_prev.get("nilai_usd") else None,
+        "yoy_trademap_persen": round(100 * (tm_ref["nilai_usd"] - tm_prev["nilai_usd"]) / tm_prev["nilai_usd"], 2)
+        if tm_prev.get("nilai_usd") else None,
+    }
+
+    # --- narasi deterministik (sumber terpisah, tanpa mengarang) ---
+    lab = "ekspor" if flow == "ekspor" else "impor"
+    bab_label = hs2
+    parts = []
+    bv = ringkasan["bps_nilai_usd"]
+    tv = ringkasan["trademap_nilai_usd"]
+    if bv:
+        yb = ringkasan["yoy_bps_persen"]
+        kb = "naik" if (yb or 0) >= 0 else "turun"
+        parts.append(
+            f"Menurut data BPS/Bea Cukai, nilai {lab} HS bab {bab_label} tahun {ref} "
+            f"sebesar {_fmt_usd_miliar(bv)}, {kb} sekitar {_idn(abs(yb or 0), 1)}% dari tahun "
+            f"{ref - 1} ({_fmt_usd_miliar(bps_prev.get('nilai_usd', 0))})."
+        )
+    if tv:
+        yt = ringkasan["yoy_trademap_persen"]
+        kt = "naik" if (yt or 0) >= 0 else "turun"
+        parts.append(
+            f"Menurut data TradeMap (ITC), nilai {lab} bab {bab_label} pada periode yang sama "
+            f"sebesar {_fmt_usd_miliar(tv)} ({kt} sekitar {_idn(abs(yt or 0), 1)}% dibanding tahun "
+            f"{ref - 1}). Selisih antara kedua sumber pada tahun {ref} adalah "
+            f"{_idn(ringkasan['selisih_persen'], 2)}%."
+        )
+    if bps_kom:
+        top = bps_kom[0]
+        rest = bps_kom[1:4]
+        frase = (f"Komoditas penyumbang terbesar menurut BPS: {top['komoditas']} "
+                 f"({_fmt_usd_miliar(top['nilai_usd'])}, sekitar {top['porsi_persen']:.0f}%)")
+        if rest:
+            frase += "; " + ", ".join(
+                f"{r['komoditas']} ({_fmt_usd_juta(r['nilai_usd'])})" for r in rest)
+        parts.append(frase + ".")
+    parts.append(
+        "Catatan: angka TradeMap tersedia pada tingkat bab (HS2); rincian per komoditas "
+        "hanya tersedia dari BPS. Kedua sumber dijaga terpisah dan tidak digabung."
+    )
+    narasi = " ".join(parts)
+
+    return jsonify({
+        "flow": flow,
+        "hs": hs,
+        "hs_label": "hasil perikanan" if hs2 == "03" else hs2,
+        "tahun": tahun,
+        "ref_tahun": ref,
+        "seri_tahun": seri,
+        "bps": {"per_komoditas": bps_kom, "volume_kg": bps_total_ref.get("volume_kg", 0)},
+        "trademap": {"nilai_usd": tm_ref.get("nilai_usd")},
+        "ringkasan": ringkasan,
+        "narasi": narasi,
+        "catatan": [
+            "BPS/Bea Cukai: data faktur ekspor-impor Indonesia (vol kg + nilai USD).",
+            "TradeMap (ITC/Comtrade): nilai USD ternormalisasi dari satuan sumber "
+            "(US$ thousand); tersedia di tingkat bab HS (HS2).",
+            "Kedua sumber dijaga terpisah; rasio = TradeMap/BPS pada tahun yang sama.",
+        ],
+    })
