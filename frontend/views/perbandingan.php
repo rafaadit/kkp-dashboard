@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/src/SvgChart.php';
 $mode = $_GET['mode'] ?? 'periode';
 $exim = $_GET['exim'] ?? 'ekspor';
 $a_mulai = $_GET['a_mulai'] ?? '2026-06';
@@ -77,6 +78,23 @@ if ($mode === 'banding') {
             <div class="v"><?= $bi['ringkasan']['rasio'] !== null ? \KKP\View::num($bi['ringkasan']['rasio'], 2) . 'x' : '-'; ?></div>
             <div class="muted">selisih <?= $bi['ringkasan']['selisih_persen'] !== null ? \KKP\View::num($bi['ringkasan']['selisih_persen'], 2) . '%' : '-'; ?></div></div>
     </div>
+    <?php
+        $c_years = []; $c_bps = []; $c_tm = [];
+        foreach ($bi['seri_tahun'] as $s) {
+            if ($s['trademap_nilai_usd'] !== null) {
+                $c_years[] = 'HS' . (string) $s['tahun'];
+                $c_bps[] = $s['bps_nilai_usd'] !== null ? (float) $s['bps_nilai_usd'] : 0.0;
+                $c_tm[] = (float) $s['trademap_nilai_usd'];
+            }
+        }
+        if (count($c_years) >= 2) {
+            $f_miliar = function ($v) { return number_format((float) $v / 1e9, 1, ',', '.') . ' M'; };
+            echo \KKP\SvgChart::bars($c_years, [
+                ['name' => 'BPS (USD)', 'values' => $c_bps, 'color' => '#1c3f63'],
+                ['name' => 'TradeMap (USD)', 'values' => $c_tm, 'color' => '#2d9c8f'],
+            ], ['w' => 720, 'h' => 260, 'fmt' => $f_miliar]);
+        }
+    ?>
     <table class="tbl">
         <thead><tr><th>Tahun</th><th>BPS (USD)</th><th>BPS (kg)</th><th>TradeMap (USD)</th><th>Rasio</th><th>Selisih %</th></tr></thead>
         <tbody>
