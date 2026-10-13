@@ -351,6 +351,19 @@ def banding_industri():
     for r in bps_kom:
         r["porsi_persen"] = round(100 * r["nilai_usd"] / total_ref, 1) if total_ref else None
 
+    # rincian per produk (TradeMap) dalam bab, pada tahun referensi (baris detail HS4/HS6)
+    tm_produk = _row(
+        "SELECT product_code, MAX(product_desc) AS product_desc, "
+        "COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code LIKE %s "
+        "AND CHAR_LENGTH(product_code) > 2 AND year=%s "
+        "GROUP BY product_code ORDER BY nilai_usd DESC LIMIT 12",
+        [tm_flow, hs2 + "%", ref],
+    )
+    tm_total_detail = sum(float(r["nilai_usd"]) for r in tm_produk)
+    for r in tm_produk:
+        r["porsi_persen"] = round(100 * float(r["nilai_usd"]) / tm_total_detail, 1) if tm_total_detail else None
+
     tm_ref = tm_by.get(ref, {})
     bps_ref = bps_by.get(ref, {})
     bps_prev = bps_by.get(ref - 1, {})
@@ -401,9 +414,18 @@ def banding_industri():
             frase += "; " + ", ".join(
                 f"{r['komoditas']} ({_fmt_usd_juta(r['nilai_usd'])})" for r in rest)
         parts.append(frase + ".")
+    if tm_produk:
+        tp = tm_produk[0]
+        label = tp["product_desc"] or tp["product_code"]
+        if len(label) > 42:
+            label = label[:40].rstrip() + "…"
+        parts.append(
+            f"Produk terbesar menurut TradeMap pada tahun {ref}: {label} "
+            f"({_fmt_usd_miliar(tp['nilai_usd'])}, sekitar {tp['porsi_persen']:.0f}% dari bab).")
     parts.append(
-        "Catatan: angka TradeMap tersedia pada tingkat bab (HS2); rincian per komoditas "
-        "hanya tersedia dari BPS. Kedua sumber dijaga terpisah dan tidak digabung."
+        "Catatan: angka TradeMap tersedia pada tingkat bab (HS2) dengan rincian produk "
+        "HS4/HS6; rincian per komoditas hanya dari BPS. Kedua sumber dijaga terpisah "
+        "dan tidak digabung."
     )
     narasi = " ".join(parts)
 
@@ -415,13 +437,14 @@ def banding_industri():
         "ref_tahun": ref,
         "seri_tahun": seri,
         "bps": {"per_komoditas": bps_kom, "volume_kg": bps_total_ref.get("volume_kg", 0)},
-        "trademap": {"nilai_usd": tm_ref.get("nilai_usd")},
+        "trademap": {"nilai_usd": tm_ref.get("nilai_usd"), "per_produk": tm_produk},
         "ringkasan": ringkasan,
         "narasi": narasi,
         "catatan": [
             "BPS/Bea Cukai: data faktur ekspor-impor Indonesia (vol kg + nilai USD).",
             "TradeMap (ITC/Comtrade): nilai USD ternormalisasi dari satuan sumber "
-            "(US$ thousand); tersedia di tingkat bab HS (HS2).",
+            "(US$ thousand); agregat pada tingkat bab HS (HS2) + rincian produk HS4/HS6 "
+            "bila tersedia.",
             "Kedua sumber dijaga terpisah; rasio = TradeMap/BPS pada tahun yang sama.",
         ],
     })

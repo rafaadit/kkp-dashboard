@@ -48,9 +48,17 @@ def main():
     names = [k["komoditas"] for k in d["bps"]["per_komoditas"]]
     check("ada Udang (ekspor)", "Udang" in names, str(names[:4]))
     check("porsi terisi", all(k["porsi_persen"] is not None for k in d["bps"]["per_komoditas"]), str(d["bps"]["per_komoditas"][:1]))
+    tm_prod = d["trademap"]["per_produk"]
+    check("per_produk TradeMap non-kosong", tm_prod, str(tm_prod[:2]))
+    check("per_produk HS4/6 (>2 digit)", tm_prod and all(len(p["product_code"]) > 2 for p in tm_prod), str([p["product_code"] for p in tm_prod[:5]]))
+    check("per_produk punya deskripsi", tm_prod and all(p["product_desc"] for p in tm_prod), str(tm_prod[:1]))
+    check("per_produk porsi terisi", tm_prod and all(p["porsi_persen"] is not None for p in tm_prod), str(tm_prod[:1]))
+    check("per_produk terbesar cakupan (!=0)", tm_prod and float(tm_prod[0]["nilai_usd"]) > 0, str(tm_prod[:1]))
+    check("per_produk top konsisten crusiacean (ekspor)", tm_prod[0]["product_code"] == "0306", tm_prod[0]["product_code"])
     nar = d["narasi"]
     check("narasi sebut 2 sumber", "TradeMap" in nar and "BPS" in nar, nar[:200])
     check("narasi angka nyata (4," in nar or "3," in nar or "1," in nar, nar[:200])
+    check("narasi sebut produk terbesar", "TradeMap" in nar and "Produk terbesar" in nar, nar[:200])
     check("catatan terpisah", any("terpisah" in k for k in d["catatan"]), str(d["catatan"]))
 
     print("== filter tahun ==")
@@ -65,6 +73,9 @@ def main():
     ri = di["ringkasan"]
     check("impor bps+tm terisi", ri["bps_nilai_usd"] and ri["trademap_nilai_usd"], {k: ri[k] for k in ("bps_nilai_usd", "trademap_nilai_usd")})
     check("impor rasio wajar (0.5-1.5)", ri["rasio"] and 0.5 <= ri["rasio"] <= 1.5, str(ri["rasio"]))
+    tm_prod_i = di["trademap"]["per_produk"]
+    check("impor per_produk non-kosong", tm_prod_i, str(tm_prod_i[:2]))
+    check("impor per_produk top beku (0303)", tm_prod_i and tm_prod_i[0]["product_code"] == "0303", tm_prod_i[0]["product_code"] if tm_prod_i else "-")
     print("  INFO  ekspor %s rasio %s | impor %s rasio %s"
           % (d["ref_tahun"], d["ringkasan"]["rasio"], di["ref_tahun"], ri["rasio"]))
 

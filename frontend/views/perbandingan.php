@@ -110,21 +110,46 @@ if ($mode === 'banding') {
         <?php endforeach; ?>
         </tbody>
     </table>
-    <?php if ($bi['bps']['per_komoditas']): ?>
-    <table class="tbl">
-        <thead><tr><th>Komoditas (BPS <?= \KKP\View::e($bi['ref_tahun']); ?>)</th><th>Nilai (USD)</th><th>Volume (kg)</th><th>Porsi %</th></tr></thead>
-        <tbody>
-        <?php foreach ($bi['bps']['per_komoditas'] as $k): ?>
-            <tr>
-                <td><?= \KKP\View::e($k['komoditas']); ?></td>
-                <td><?= \KKP\View::num($k['nilai_usd'], 0); ?></td>
-                <td><?= \KKP\View::num($k['volume_kg'], 0); ?></td>
-                <td><?= $k['porsi_persen'] !== null ? \KKP\View::num($k['porsi_persen'], 1) . '%' : '-'; ?></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-    <?php endif; ?>
+    <section class="grid-2">
+        <div>
+        <?php if ($bi['bps']['per_komoditas']): ?>
+        <h4>Komoditas terbesar (BPS <?= \KKP\View::e($bi['ref_tahun']); ?>)</h4>
+        <table class="tbl">
+            <thead><tr><th>Komoditas</th><th>Nilai (USD)</th><th>Volume (kg)</th><th>Porsi %</th></tr></thead>
+            <tbody>
+            <?php foreach ($bi['bps']['per_komoditas'] as $k): ?>
+                <tr>
+                    <td><?= \KKP\View::e($k['komoditas']); ?></td>
+                    <td><?= \KKP\View::num($k['nilai_usd'], 0); ?></td>
+                    <td><?= \KKP\View::num($k['volume_kg'], 0); ?></td>
+                    <td><?= $k['porsi_persen'] !== null ? \KKP\View::num($k['porsi_persen'], 1) . '%' : '-'; ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+        </div>
+        <div>
+        <?php if ($bi['trademap']['per_produk']): ?>
+        <h4>Produk terbesar (TradeMap <?= \KKP\View::e($bi['ref_tahun']); ?>)</h4>
+        <table class="tbl">
+            <thead><tr><th>Kode</th><th>Produk</th><th>Nilai (USD)</th><th>Porsi %</th></tr></thead>
+            <tbody>
+            <?php foreach ($bi['trademap']['per_produk'] as $p): ?>
+                <tr>
+                    <td><?= \KKP\View::e($p['product_code']); ?></td>
+                    <td><?= \KKP\View::e($p['product_desc']); ?></td>
+                    <td><?= \KKP\View::num($p['nilai_usd'], 0); ?></td>
+                    <td><?= $p['porsi_persen'] !== null ? \KKP\View::num($p['porsi_persen'], 1) . '%' : '-'; ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php else: ?>
+        <p class="muted">Rincian produk TradeMap untuk bab ini belum tersedia.</p>
+        <?php endif; ?>
+        </div>
+    </section>
     <p><?= \KKP\View::e($bi['narasi']); ?></p>
     <ul>
         <?php foreach ($bi['catatan'] as $keterangan): ?>
