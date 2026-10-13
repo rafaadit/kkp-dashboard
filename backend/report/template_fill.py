@@ -1222,29 +1222,24 @@ def fill_presentation(prs, data):
         4: _fill_slide4, 5: _fill_slide5, 6: _fill_slide6, 7: _fill_slide7,
         8: _fill_slide8, 9: _fill_slide9,
     }
-    import os as _os
-    skip_text = bool(_os.environ.get("SKIP_TEXT"))
-    skip_charts = bool(_os.environ.get("SKIP_CHARTS"))
     for idx, slide in enumerate(prs.slides):
         if idx > 9:
             break
         nodes = list(iter_nodes(slide.shapes))
         before = {n.shape.shape_id: n.text for n in nodes}
         fn = fillers.get(idx)
-        if fn and not skip_text:
+        if fn:
             fn(nodes, data)
-        if not skip_charts:
-            if idx == 1:
-                n = fill_charts(slide, "eks_kinerja", data)
-            elif idx == 2:
-                n = fill_charts(slide, "neraca", data)
-            elif idx == 7:
-                n = fill_charts(slide, "imp_kinerja", data)
+        if idx == 1:
+            n = fill_charts(slide, "eks_kinerja", data)
+        elif idx == 2:
+            n = fill_charts(slide, "neraca", data)
+        elif idx == 7:
+            n = fill_charts(slide, "imp_kinerja", data)
         after = {n.shape.shape_id: n.text for n in iter_nodes(slide.shapes)}
         changed = sum(1 for sid in after if norm(after[sid]) != norm(before.get(sid, "")))
         stats[idx] = changed
-    if not skip_text:
-        _sanitize(prs)
+    _sanitize(prs)
     return stats
 
 
