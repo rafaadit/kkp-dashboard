@@ -296,13 +296,13 @@ def banding_industri():
     # TradeMap: textur prefer rincian kode HS di bawah bab (6 digit), fallback baris bab "03".
     tm_detail = _row(
         "SELECT year AS tahun, COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
-        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code LIKE %s "
-        "AND CHAR_LENGTH(product_code) > 2 GROUP BY year ORDER BY year",
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND partner='WLD' "
+        "AND product_code LIKE %s AND CHAR_LENGTH(product_code) > 2 GROUP BY year ORDER BY year",
         [tm_flow, hs2 + "%"],
     )
     tm_compact = _row(
         "SELECT year AS tahun, COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
-        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code=%s "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND partner='WLD' AND product_code=%s "
         "GROUP BY year ORDER BY year",
         [tm_flow, hs2],
     )
@@ -355,7 +355,8 @@ def banding_industri():
     tm_produk = _row(
         "SELECT product_code, MAX(product_desc) AS product_desc, "
         "COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
-        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code LIKE %s "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND partner='WLD' "
+        "AND product_code LIKE %s "
         "AND CHAR_LENGTH(product_code) > 2 AND year=%s "
         "GROUP BY product_code ORDER BY nilai_usd DESC LIMIT 12",
         [tm_flow, hs2 + "%", ref],
@@ -446,5 +447,144 @@ def banding_industri():
             "(US$ thousand); agregat pada tingkat bab HS (HS2) + rincian produk HS4/HS6 "
             "bila tersedia.",
             "Kedua sumber dijaga terpisah; rasio = TradeMap/BPS pada tahun yang sama.",
+        ],
+    })
+
+
+@trademap_bp.get("/banding_negara")
+@require_perm("trademap.view")
+def banding_negara():
+    """Bandingkan BAB hs BPS vs TradeMap PER NEGARA TUJUAN/ASAL pada satu tahun.
+
+    Sisi BPS: agregat raw_exim per kode negara (alpha-2).
+    Sisi TradeMap: data bilateral (reporter x partner) yang diunduh robot web
+    untuk 8 partner tujuan utama (kode partner = kode dropdown legacy site,
+    dipetakan ke alpha-2 via config.TRADEMAP_PARTNER_ALPHA2).
+
+    Kedua sisi hanya DIlaporkan, tidak dicampur; rasio/selisih dihitung bila
+    negara yang sama muncul di kedua sumber.
+    """
+    from backend.trademap.config import TRADEMAP_PARTNER_ALPHA2
+
+    conn = get_connection()
+    cur = conn.cursor()
+    flow = request.args.get("flow", "ekspor").strip().lower()
+    hs2 = (request.args.get("hs") or "03").strip()
+    cek = request.args.get("tahun", type=int)
+
+    if flow not in ("ekspor", "impor"):
+        raise ApiError("flow harus ekspor atau impor", 400)
+    if not re.fullmatch(r"\d{2}", hs2):
+        raise ApiError("hs harus 2 digit (bab)", 400)
+    tm_flow = "Export" if flow == "ekspor" else "Import"
+
+    tm_years = [r["tahun"] for r in _row(
+        "SELECT DISTINCT year AS tahun FROM trademap_trade "
+        "WHERE flow=%s AND reporter='ID' AND product_code=%s AND partner<>'WLD' "
+        "ORDER BY year", [tm_flow, hs2])]
+    bps_years = [r["tahun"] for r in _row(
+        "SELECT DISTINCT tahun FROM raw_exim WHERE exim_type=%s AND kode_hs_2dg=%s",
+        [flow, hs2])]
+    overlap = sorted(set(tm_years) & set(bps_years))
+    if not overlap:
+        raise ApiError("belum ada data bilateral TradeMap untuk bab %s; jalankan "
+                       "robot --partner (mis. 156, 842)" % hs2, 404)
+    ref = cek if (cek in overlap) else overlap[-1]
+
+    bps_rows = _row(
+        "SELECT kode_negara, MAX(negara) AS negara, "
+        "COALESCE(SUM(nil_usd),0) AS nilai_usd, COALESCE(SUM(vol_kg),0) AS volume_kg "
+        "FROM raw_exim WHERE exim_type=%s AND kode_hs_2dg=%s AND tahun=%s "
+        "AND NULLIF(kode_negara,'') IS NOT NULL "
+        "GROUP BY kode_negara ORDER BY nilai_usd DESC LIMIT 15",
+        [flow, hs2, ref],
+    )
+    tm_rows = _row(
+        "SELECT partner, COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code=%s "
+        "AND year=%s AND partner<>'WLD' GROUP BY partner ORDER BY nilai_usd DESC",
+        [tm_flow, hs2, ref],
+    )
+
+    neg_by_code = {}
+    for r in _row("SELECT kode_negara, nama_negara FROM ms_negara", []):
+        neg_by_code[r["kode_negara"].strip().upper()] = r["nama_negara"]
+
+    bps_map = {r["kode_negara"].strip(): r for r in bps_rows}
+    tm_map = {}
+    for r in tm_rows:
+        kode = TRADEMAP_PARTNER_ALPHA2.get(str(r["partner"]))
+        if not kode:
+            continue
+        tm_map[kode] = r["nilai_usd"]
+
+    bps_total = sum(float(r["nilai_usd"]) for r in bps_rows) or 1
+    tm_total = sum(float(v) for v in tm_map.values()) or 1
+
+    tabel = []
+    for kode in list(bps_map) + [k for k in tm_map if k not in bps_map]:
+        b = bps_map.get(kode)
+        tv = tm_map.get(kode)
+        if tv is None and b is None:
+            continue
+        nama = (b["negara"] if b else neg_by_code.get(kode.upper())) or kode
+        row = {
+            "kode": kode,
+            "negara": nama,
+            "bps_nilai_usd": float(b["nilai_usd"]) if b else None,
+            "bps_volume_kg": float(b["volume_kg"]) if b else None,
+            "trademap_nilai_usd": float(tv) if tv is not None else None,
+        }
+        if row["bps_nilai_usd"] and row["trademap_nilai_usd"]:
+            row["rasio"] = round(row["trademap_nilai_usd"] / row["bps_nilai_usd"], 4)
+            row["selisih_persen"] = round(100 * (row["trademap_nilai_usd"] - row["bps_nilai_usd"])
+                                          / row["bps_nilai_usd"], 2)
+        else:
+            row["rasio"] = None
+            row["selisih_persen"] = None
+        tabel.append(row)
+    tabel.sort(key=lambda r: (r["bps_nilai_usd"] is None, -(r["bps_nilai_usd"] or 0)),
+               reverse=False)
+
+    # narasi deterministik (sumber terpisah)
+    lab = "ekspor" if flow == "ekspor" else "impor"
+    parts = []
+    bps_top = tabel[0] if tabel and tabel[0]["bps_nilai_usd"] is not None else None
+    tm_named = [r for r in tabel if r["trademap_nilai_usd"] is not None]
+    tm_top = max(tm_named, key=lambda r: r["trademap_nilai_usd"]) if tm_named else None
+    both = [r for r in tabel if r["bps_nilai_usd"] is not None and r["trademap_nilai_usd"] is not None]
+    if bps_top and tabel:
+        parts.append(
+            f"Menurut BPS, tujuan {lab} bab {hs2} terbesar tahun {ref} adalah "
+            f"{bps_top['negara']} ({_fmt_usd_miliar(bps_top['bps_nilai_usd'])}).")
+    if tm_top:
+        lbl = tm_top["negara"] if tm_top["negara"] else tm_top["kode"]
+        parts.append(
+            f"Menurut TradeMap (data bilateral untuk 8 partner utama), partner terbesar "
+            f"adalah {lbl} ({_fmt_usd_miliar(tm_top['trademap_nilai_usd'])}).")
+    if both:
+        cocok = sum(1 for r in both if abs(r["selisih_persen"] or 0) <= 10)
+        parts.append(
+            f"Terdapat {len(both)} negara yang ada di kedua sumber; "
+            f"{cocok} di antaranya cocok (selisih <= 10%). "
+            + " ".join(
+                f"{r['negara']} {_idn(abs(r['selisih_persen']), 1)}%"
+                for r in both[:3]))
+    if not tabel:
+        parts.append(f"Belum ada data per negara untuk bab {hs2} tahun {ref}.")
+    narasi = " ".join(parts)
+
+    return jsonify({
+        "flow": flow,
+        "hs": hs2,
+        "ref_tahun": ref,
+        "bps_total": bps_total,
+        "trademap_total": tm_total,
+        "tabel": tabel,
+        "narasi": narasi,
+        "catatan": [
+            "TradeMap bilateral hanya mencakup 8 partner tujuan utama (unduhan robot web).",
+            "Kode partner TradeMap (dropdown situs) dipetakan ke kode alpha-2 BPS; "
+            "negara yang tidak ada di kedua sumber tetap ditampilkan sebagai satu sisi.",
         ],
     })

@@ -79,6 +79,26 @@ def main():
     print("  INFO  ekspor %s rasio %s | impor %s rasio %s"
           % (d["ref_tahun"], d["ringkasan"]["rasio"], di["ref_tahun"], ri["rasio"]))
 
+    print("== /api/trademap/banding_negara (per negara tujuan ekspor, bab 03) ==")
+    r = c.get("/api/trademap/banding_negara?flow=ekspor", headers=H)
+    check("banding_negara 200", r.status_code == 200, r.get_data(as_text=True)[:150])
+    dn = r.get_json()
+    check("ref tahun wajar (>=2024)", dn["ref_tahun"] >= 2024, str(dn["ref_tahun"]))
+    t = dn["tabel"]
+    check("tabel negara terisi (>=8)", len(t) >= 8, str(len(t)))
+    us = next((x for x in t if x["kode"] in ("US", "842")), None)
+    check("ada AS di kedua sumber", us and us["bps_nilai_usd"] and us["trademap_nilai_usd"], str(us))
+    check("AS rasio wajar (0.9-1.1)", us and us["rasio"] and 0.9 <= us["rasio"] <= 1.1, str(us))
+    cn = next((x for x in t if x["kode"] == "CN"), None)
+    check("China cocok nyaris penuh (>=0.99)", cn and cn["rasio"] and cn["rasio"] >= 0.99,
+          str(cn and cn["rasio"]))
+    check("ada negara BPS-only (IT/CA)", any(x["bps_nilai_usd"] and x["trademap_nilai_usd"] is None
+          for x in t), str([x["kode"] for x in t[:6]]))
+    narn = dn["narasi"]
+    check("narasi negara sebut 2 sumber", "TradeMap" in narn and "BPS" in narn, narn[:200])
+    check("banding_negara tanpa token 401", c.get("/api/trademap/banding_negara?flow=ekspor").status_code == 401)
+    check("banding_negara flow salah 400", c.get("/api/trademap/banding_negara?flow=zz", headers=H).status_code == 400)
+
     print("== proteksi & validasi ==")
     check("flow salah 400", c.get("/api/trademap/banding_industri?flow=ngawur", headers=H).status_code == 400)
     check("hs salah 400", c.get("/api/trademap/banding_industri?hs=abc", headers=H).status_code == 400)

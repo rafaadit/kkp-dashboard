@@ -5,7 +5,24 @@ Semua pemetaan di sini adalah KONFIGURASI teknis (bukan business rule baru):
   pada file/fixture project (lihat tests/fixtures/trademap_sample.csv).
 - skala unit nilai murni faktor konversi satuan yang dinyatakan pada header
   kolom (mis. "US$ Thousand" = x1000), bukan equivalence yang dikarang.
+- kode partner bilateral diambil dari dropdown situs legacy.trademap.org
+  (nilai option). Untuk USA nilainya '842' (bukan ISO 840), Chinese Taipei
+  '490'; lainnya ikut kode numerik UN M49. Baris BPS memakai kode alpha-2.
 """
+
+# Kode partner legacy.trademap.org -> kode alpha-2 (kolom kode_negara master/BPS).
+# Baris BPS pada raw_exim memakai alpha-2 ("US", "CN", ...).
+TRADEMAP_PARTNER_ALPHA2 = {
+    "842": "US",   # United States of America
+    "840": "US",   # fallback ISO M49
+    "156": "CN",   # China
+    "704": "VN",   # Viet Nam
+    "392": "JP",   # Japan
+    "764": "TH",   # Thailand
+    "458": "MY",   # Malaysia
+    "490": "TW",   # Chinese Taipei
+    "702": "SG",   # Singapore
+}
 
 # --- Alias header (case-insensitive, spasi/underscore disamakan) -------------
 HEADER_ALIASES = {

@@ -31,6 +31,8 @@ def check(name, cond, detail=""):
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "trademap_web_export.html")
 FIXTURE_TITLE = "Indonesia"
+HEADER_PIPELINE = ["Reporter", "Partner", "Flow", "Product code", "Product Label",
+                   "Year", "Trade Value (US$ Thousand)"]
 
 
 def read_fixture():
@@ -66,9 +68,7 @@ def main():
 
     csv_text = webscraper.grid_to_csv(grid, reporter="ID", partner="WLD", flow="Export")
     rows = list(_csv.reader(_io.StringIO(csv_text)))
-    check("header sesuai pipeline",
-          rows[0] == ["Reporter", "Partner", "Flow", "Product code", "Product Label",
-                      "Year", "Trade Value (US$ Thousand)"], rows[0])
+    check("header sesuai pipeline", rows[0] == HEADER_PIPELINE, rows[0])
     check("1 baris per tahun-produk", len(rows) == 1 + len(grid.rows) * len(grid.years),
           "%d != %d" % (len(rows), 1 + len(grid.rows) * len(grid.years)))
     check("nilai bernilai angka bersih", all(
@@ -114,6 +114,30 @@ def main():
         g = res.stats.as_dict()
         check("statistik terisi", isinstance(g.get("total_rows"), int) and g.get("total_rows") > 0,
               str(g))
+
+    print("== parse grid bilateral (reporter x partner) dari fixture ==")
+    with open(os.path.join(os.path.dirname(__file__), "fixtures", "trademap_web_bilateral.html"),
+              encoding="utf-8") as fh:
+        b_body = fh.read()
+    bg = webscraper.extract_bilateral_grid(b_body, flow="Export")
+    check("bilateral flow Export", bg.flow == "Export", str(bg.flow))
+    check("bilateral indikator value", bg.indicator == "value", str(bg.indicator))
+    check("bilateral 5 tahun 2021..2025", bg.years == [2021, 2022, 2023, 2024, 2025],
+          str(bg.years))
+    check("bilateral semua produk bab (>=20)", len(bg.rows) >= 20, str(len(bg.rows)))
+    b03 = next((r for r in bg.rows if r[0] == "03"), None)
+    check("bilateral ada bab 03", b03 is not None, str([r[0] for r in bg.rows[:5]]))
+    check("bilateral nilai bab 03 China 2025 wajar",
+          b03 and b03[2][4] and 900000 < int(b03[2][4].replace(",", "")) < 1000000,
+          str(b03 and b03[2]))
+
+    print("== grid_to_csv bilateral ==")
+    b_csv = webscraper.grid_to_csv(bg, reporter="ID", partner="156", flow="Export")
+    b_rows = list(_csv.reader(_io.StringIO(b_csv)))
+    check("header bilateral sesuai", b_rows[0] == HEADER_PIPELINE, b_rows[0])
+    check("partner=156", all(r[1] == "156" for r in b_rows[1:]), b_rows[2][:4])
+    check("jumlah baris 1+produk*tahun",
+          len(b_rows) == 1 + len(bg.rows) * len(bg.years), str(len(b_rows)))
 
     print("== smoke-test live (hanya bila TEST_NETWORK=1) ==")
     if os.environ.get("TEST_NETWORK", "0") == "1":
