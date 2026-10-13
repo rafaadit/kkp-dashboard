@@ -113,6 +113,48 @@ def main():
         check("urutan XML paragraf valid (endParaRPr di akhir)", _bad == 0,
               "pelanggaran urutan: %d" % _bad)
 
+        s5, s9b = _texts(prs.slides[5]), _texts(prs.slides[9])
+        share2 = [t.strip() for t in s5 + s9b if _re.match(r"^\(\d+,\d\d%\)$", t.strip())]
+        share1 = [t.strip() for t in s5 + s9b if _re.match(r"^\(\d+,\d%\)$", t.strip())]
+        check("share 1 desimal di slide 6 & 10 (mis. (63,3%), bukan (63,34%))",
+              not share2 and len(share1) >= 1, f"2-desimal: {share2}, 1-desimal: {share1}")
+
+        def _with_id(slide, sid):
+            def _w(shapes):
+                for sh in shapes:
+                    if sh.shape_type == 6:
+                        yield from _w(sh.shapes)
+                    elif sh.shape_id == sid:
+                        yield sh
+            return list(_w(slide.shapes))
+
+        oval = next(iter(_with_id(prs.slides[9], 99)), None)
+        check("oval TOTAL IMPOR slide 10 ada 5 baris",
+              oval is not None and len(oval.text_frame.paragraphs) == 5)
+        if oval is not None:
+            par = oval.text_frame.paragraphs
+            tex = [p.text for p in par]
+            body = oval.text_frame._txBody.find(_A + "bodyPr")
+            check("baris lingkaran: TOTAL IMPOR / JAN-JUN 2026 / USD / <nilai> / JUTA",
+                  tex[0] == "TOTAL IMPOR" and tex[1] == "JAN-JUN 2026"
+                  and tex[2].strip() == "USD" and tex[4] == "JUTA"
+                  and bool(_re.match(r"^\d+(?:\.\d+)?,\d+$", tex[3].strip())),
+                  repr(tex))
+            check("oval anchor top + inset 36pt (teks di bawah ikon globe)",
+                  body is not None and body.get("anchor") == "t"
+                  and body.get("tIns") == "457200", _etree.tostring(body)[:200].decode() if body is not None else "")
+            sizes = []
+            for p in par:
+                rpr = p.runs[0]._r.find(_A + "rPr") if p.runs else None
+                sf = rpr.find(_A + "solidFill") if rpr is not None else None
+                col = sf.find(_A + "srgbClr").get("val") if sf is not None and len(sf) else None
+                sizes.append((rpr.get("sz") if rpr is not None else None, col))
+            check("warna teks lingkaran = template (021568) di semua baris",
+                  all(c == "021568" for _sz, c in sizes), repr(sizes))
+            check("ukuran teks lingkaran: label 7pt, angka 10pt",
+                  [sz for sz, _c in sizes[:3]] == ["700", "700", "700"]
+                  and sizes[3][0] == "1000" and sizes[4][0] == "700", repr(sizes))
+
     print("== validasi job tercatat ==")
     conn = get_connection()
     cur = conn.cursor()
