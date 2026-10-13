@@ -168,11 +168,11 @@ _SUBHEADER_RE = re.compile(r"^Value in (\d{4})$", re.I)
 def extract_bilateral_grid(html_body, flow="Export"):
     """Parse grid *bilateral* (reporter x partner) dari halaman Country_SelProduct.
 
-    Halaman hasil query dengan partner tertentu berisi header
-    ['<level>', 'Product code', 'Product label', 'Reporter X to <partner>',
-     '...imports from world', "Reporter's exports to world"] dan baris sub-header
-    'Value in <tahun>' berulang per blok. Yang diambil hanya BLOK PERTAMA
-    (arus Indonesia -> partner). Return Grid dengan rows [(code, label, values)].
+    Halaman hasil query dengan partner tertentu dan produk bab (HS2) berisi
+    header ['<level>', 'Product code', 'Product label', 'Reporter X to <partner>',
+     ...] dengan sub-header 'Value in <tahun>' berulang per blok. Yang diambil
+    hanya BLOK PERTAMA (arus Indonesia -> partner). Return Grid
+    rows [(code, label, values)].
     """
     rows = _cell_rows(html_body)
     header_idx = None
@@ -184,16 +184,13 @@ def extract_bilateral_grid(html_body, flow="Export"):
         raise WebError("header grid bilateral tidak ditemukan (situs mungkin berubah)")
 
     level = rows[header_idx][0] or ""
+    nblocks = max(1, sum(1 for c in rows[header_idx][3:] if (c or "").strip()))
     sub = rows[header_idx + 1] if header_idx + 1 < len(rows) else []
-    years = []
-    for c in sub:
-        m = _SUBHEADER_RE.match((c or "").strip())
-        if m:
-            years.append(int(m.group(1)))
-        elif years:
-            break
-    if not years:
+    year_hits = [c for c in sub if _SUBHEADER_RE.match((c or "").strip())]
+    if not year_hits:
         raise WebError("tidak ada kolom tahun pada grid bilateral")
+    n = max(1, len(year_hits) // nblocks)
+    years = [int(_SUBHEADER_RE.match(c).group(1)) for c in year_hits][:n]
 
     unit = ""
     um = re.search(r"Unit\s*:\s*([^<&]{0,40})", html_body)
@@ -203,6 +200,8 @@ def extract_bilateral_grid(html_body, flow="Export"):
     n = len(years)
     data_rows = []
     for cs in rows[header_idx + 2:]:
+        if len(cs) < 3:
+            continue
         code = (cs[1] or "").strip()
         if not code or code.upper() == "TOTAL" or not re.fullmatch(r"\d+", code):
             continue
@@ -310,63 +309,15 @@ class TradeMapWebSession:
         raise WebError("POST form TradeMap gagal: %s" % last)
 
 
-_BILATERAL_BASE = ("/Country_SelProduct_TS.aspx?nvpm="
-                   "1%7c360%7c%7c%7c%7cTOTAL%7c%7c%7c1%7c1%7c1%7c2%7c2%7c1%7c1%7c1%7c1%7c1")
-_FORM_FIELDS = {
-    "ctl00$MenuControl$DDL_Language": "en",
-    "ctl00$NavigationControl$DropDownList_Country": "360",
-    "ctl00$NavigationControl$DropDownList_Country_Group": "-2",
-    "ctl00$NavigationControl$DropDownList_Partner_Group": "-2",
-    "ctl00$NavigationControl$DropDownList_TradeType": "E",
-    "ctl00$NavigationControl$DropDownList_OutputType": "TSY",
-    "ctl00$NavigationControl$DropDownList_OutputOption": "ByProduct",
-    "ctl00$NavigationControl$DropDownList_Product": "TOTAL",
-    "ctl00$NavigationControl$DropDownList_Product_Group": "0",
-    "ctl00$NavigationControl$DropDownList_ProductClusterLevel": "2",
-    "ctl00$NavigationControl$DropDownList_TS_Indicator": "V",
-    "ctl00$NavigationControl$DropDownList_TS_Currency": "USD",
-    "ctl00$PageContent$GridViewPanelControl$DropDownList_NumTimePeriod": "5",
-    "ctl00$PageContent$GridViewPanelControl$DropDownList_PageSize": "10",
-    "ctl00$NavigationControl$Country_Selection": "countries",
-}
-
-
-def _field(body, name):
-    m = re.search(r'name="%(re)s" value="([^"]*)"' % {"re": re.escape(name)}, body)
-    return m.group(1) if m else ""
-
-
-def fetch_bilateral(flow, reporter_code, partner, product="TOTAL",
-                    session=None):
-    """Ambil grid bilateral reporter x partner via postback ASP.NET.
-
-    Situs legacy.trademap.org hanya merender data bilateral lewat POST form
-    (nvpm GET dengan partner diabaikan). Return Grid (blok Indonesia->partner).
-    """
-    flow = (flow or "Export").strip().title()
-    is_import = str(flow).lower().startswith("import")
-    sess = session or TradeMapWebSession()
-
-    page = sess.fetch(_BILATERAL_BASE)
-    data = dict(_FORM_FIELDS)
-    data["ctl00$NavigationControl$DropDownList_Partner"] = partner
-    data["ctl00$NavigationControl$DropDownList_TradeType"] = "I" if is_import else "E"
-    data["__VIEWSTATE"] = _field(page, "__VIEWSTATE")
-    data["__VIEWSTATEGENERATOR"] = _field(page, "__VIEWSTATEGENERATOR")
-    data["__EVENTVALIDATION"] = _field(page, "__EVENTVALIDATION")
-    data["ctl00$forgeryToken"] = _field(page, "ctl00$forgeryToken")
-
-    body = sess.post_form("/Country_SelProduct_TS.aspx", data)
-    return extract_bilateral_grid(body, flow=flow)
-
-
 def run(flow="Export", reporter_id="ID", reporter_code="360", partner=None,
         product="TOTAL", download_dir=None, session=None):
     """Unduh + parse + tulis CSV untuk satu query.
 
-    partner=None -> grid dunia (Indonesia ke seluruh dunia), GET biasa.
-    partner set   -> grid bilateral (Indonesia -> negara partner), POST form
-                     (halaman legacy hanya merender bilateral lewat postback).
+    partner=None -> grid dunia (Indonesia ke seluruh dunia).
+    partner set  -> grid bilateral (reporter x partner): nvpm di-generate
+                    build_query dengan kode partner dropdown legacy (mis. 842 = US,
+                    579 = NO, 156 = CN) + produk (bab/HS); parse handler khusus
+                    bilateral (blok pertama: Indonesia -> partner).
 
     Return (path_cvs, Grid).
     """
@@ -377,23 +328,15 @@ def run(flow="Export", reporter_id="ID", reporter_code="360", partner=None,
     os.makedirs(download_dir, exist_ok=True)
 
     if partner and str(partner).strip():
-        # hanya bab 03 (hasil perikanan) yang disimpan bila product bab diminta
-        keep = None
-        if product and re.fullmatch(r"\d{2}", str(product)):
-            keep = str(product)
-        grid = fetch_bilateral(flow, reporter_code, str(partner).strip(),
-                               product=product or "TOTAL", session=sess)
-        rows = [r for r in grid.rows if keep is None or r[0] == keep]
-        if not rows:
-            raise WebError("bab %s tidak ada pada grid bilateral %s"
-                           % (keep, partner))
-        grid = Grid(grid.level, grid.indicator, grid.flow, grid.years,
-                    grid.unit, rows)
+        p = str(partner).strip()
+        html_body = sess.fetch(build_query(flow, reporter=reporter_code,
+                                           partner=p, product=product))
+        grid = extract_bilateral_grid(html_body, flow=flow)
         csv_text = grid_to_csv(grid, reporter=reporter_id,
-                               partner=str(partner).strip(), flow=grid.flow)
+                               partner=p, flow=grid.flow)
         y0, y1 = grid.years[0], grid.years[-1]
         name = "trademap_web_%s_%d-%d_partner_%s.csv" % (
-            flow.lower().replace("-", "_"), y0, y1, str(partner).strip())
+            flow.lower().replace("-", "_"), y0, y1, p)
     else:
         html_body = sess.fetch(build_query(flow, reporter=reporter_code,
                                            partner=None, product=product))

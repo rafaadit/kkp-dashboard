@@ -480,7 +480,7 @@ def banding_negara():
 
     tm_years = [r["tahun"] for r in _row(
         "SELECT DISTINCT year AS tahun FROM trademap_trade "
-        "WHERE flow=%s AND reporter='ID' AND product_code=%s AND partner<>'WLD' "
+        "WHERE flow=%s AND reporter='ID' AND LEFT(product_code,2)=%s AND partner<>'WLD' "
         "ORDER BY year", [tm_flow, hs2])]
     bps_years = [r["tahun"] for r in _row(
         "SELECT DISTINCT tahun FROM raw_exim WHERE exim_type=%s AND kode_hs_2dg=%s",
@@ -501,7 +501,7 @@ def banding_negara():
     )
     tm_rows = _row(
         "SELECT partner, COALESCE(SUM(COALESCE(value_usd_norm, value_usd)),0) AS nilai_usd "
-        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND product_code=%s "
+        "FROM trademap_trade WHERE flow=%s AND reporter='ID' AND LEFT(product_code,2)=%s "
         "AND year=%s AND partner<>'WLD' GROUP BY partner ORDER BY nilai_usd DESC",
         [tm_flow, hs2, ref],
     )
@@ -560,7 +560,7 @@ def banding_negara():
     if tm_top:
         lbl = tm_top["negara"] if tm_top["negara"] else tm_top["kode"]
         parts.append(
-            f"Menurut TradeMap (data bilateral untuk 8 partner utama), partner terbesar "
+            f"Menurut TradeMap (data bilateral untuk partner utama), partner terbesar "
             f"adalah {lbl} ({_fmt_usd_miliar(tm_top['trademap_nilai_usd'])}).")
     if both:
         cocok = sum(1 for r in both if abs(r["selisih_persen"] or 0) <= 10)
@@ -583,7 +583,7 @@ def banding_negara():
         "tabel": tabel,
         "narasi": narasi,
         "catatan": [
-            "TradeMap bilateral hanya mencakup 8 partner tujuan utama (unduhan robot web).",
+            "TradeMap bilateral hanya mencakup partner utama yang diunduh robot web.",
             "Kode partner TradeMap (dropdown situs) dipetakan ke kode alpha-2 BPS; "
             "negara yang tidak ada di kedua sumber tetap ditampilkan sebagai satu sisi.",
         ],

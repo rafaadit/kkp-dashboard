@@ -163,11 +163,11 @@ if ($mode === 'banding') {
 <?php endif; ?>
 <?php if ($bn): ?>
 <section class="card">
-    <h3>Tujuan <?= \KKP\View::e($bn['flow']); ?> bab <?= \KKP\View::e($bn['hs']); ?> — per negara (data nyata)</h3>
+    <h3><?= $bn['flow'] === 'impor' ? 'Asal' : 'Tujuan'; ?> <?= \KKP\View::e($bn['flow']); ?> bab <?= \KKP\View::e($bn['hs']); ?> — per negara (data nyata)</h3>
     <div class="grid-2">
         <div class="kpi"><div class="k">BPS (USD, <?= \KKP\View::e($bn['ref_tahun']); ?>)</div>
             <div class="v">USD <?= \KKP\View::num($bn['bps_total'] / 1e9, 2); ?> miliar</div></div>
-        <div class="kpi"><div class="k">TradeMap (USD, 8 partner)</div>
+        <div class="kpi"><div class="k">TradeMap (USD, <?= \KKP\View::e($bn['ref_tahun']); ?>)</div>
             <div class="v">USD <?= \KKP\View::num($bn['trademap_total'] / 1e9, 2); ?> miliar</div></div>
     </div>
     <table class="tbl">

@@ -22,6 +22,11 @@ TRADEMAP_PARTNER_ALPHA2 = {
     "458": "MY",   # Malaysia
     "490": "TW",   # Chinese Taipei
     "702": "SG",   # Singapore
+    "579": "NO",   # Norway
+    "643": "RU",   # Russian Federation
+    "152": "CL",   # Chile
+    "036": "AU",   # Australia
+    "690": "SC",   # Seychelles
 }
 
 # --- Alias header (case-insensitive, spasi/underscore disamakan) -------------

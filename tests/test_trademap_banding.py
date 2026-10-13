@@ -99,6 +99,21 @@ def main():
     check("banding_negara tanpa token 401", c.get("/api/trademap/banding_negara?flow=ekspor").status_code == 401)
     check("banding_negara flow salah 400", c.get("/api/trademap/banding_negara?flow=zz", headers=H).status_code == 400)
 
+    print("== /api/trademap/banding_negara (impor bab 03, per negara asal) ==")
+    r = c.get("/api/trademap/banding_negara?flow=impor", headers=H)
+    check("impor 200", r.status_code == 200, r.get_data(as_text=True)[:150])
+    di_neg = r.get_json()
+    check("ref tahun wajar (>=2024)", di_neg["ref_tahun"] >= 2024, str(di_neg["ref_tahun"]))
+    t_in = di_neg["tabel"]
+    check("tabel negara terisi (>=8)", len(t_in) >= 8, str(len(t_in)))
+    cn_in = next((x for x in t_in if x["kode"] == "CN"), None)
+    check("impor: China ada di kedua sumber", cn_in and cn_in["bps_nilai_usd"] and cn_in["trademap_nilai_usd"], str(cn_in))
+    check("impor: China rasio wajar (1-2)", cn_in and cn_in["rasio"] and 1.0 <= cn_in["rasio"] <= 2.0, str(cn_in and cn_in["rasio"]))
+    no_in = next((x for x in t_in if x["kode"] == "NO"), None)
+    check("impor: Norwegia ada di kedua sumber", no_in and no_in["bps_nilai_usd"] and no_in["trademap_nilai_usd"], str(no_in))
+    check("impor: Norwegia rasio wajar (0.5-1.5)", no_in and no_in["rasio"] and 0.5 <= no_in["rasio"] <= 1.5, str(no_in and no_in["rasio"]))
+    check("impor narasi sebut 2 sumber", "TradeMap" in di_neg["narasi"] and "BPS" in di_neg["narasi"], di_neg["narasi"][:200])
+
     print("== proteksi & validasi ==")
     check("flow salah 400", c.get("/api/trademap/banding_industri?flow=ngawur", headers=H).status_code == 400)
     check("hs salah 400", c.get("/api/trademap/banding_industri?hs=abc", headers=H).status_code == 400)
