@@ -3,6 +3,10 @@
 import os
 import sys
 
+# Paksa mode lokal deterministik: jangan pakai LLM eksternal saat testing,
+# walaupun AI_API_KEY terisi di .env.
+os.environ["AI_API_KEY"] = ""
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.api.app import create_app
@@ -60,6 +64,32 @@ def main():
     check("sebut Udang", "Udang" in d1["answer"], d1["answer"][:120])
     d2 = c.post("/api/ai/ask", json={"question": "negara tujuan utama", "exim": "ekspor"}, headers=H).get_json()
     check("sebut negara", any(x in d2["answer"] for x in ("UNITED STATES", "CHINA", "JAPAN")), d2["answer"][:120])
+
+    print("== konteks per tahun & selaras arus ==")
+    d3 = c.post("/api/ai/ask", json={"question": "berapa total ekspor 2026", "exim": "ekspor"}, headers=H).get_json()
+    check("tahun dari pertanyaan ter-scope", d3["konteks"]["periode"]["mulai"] == [2026, 1], str(d3["konteks"]["periode"]))
+    check("konteks punya per_tahun", bool(d3["konteks"].get("per_tahun")), str(d3["konteks"].get("per_tahun"))[:80])
+    d4 = c.post("/api/ai/ask", json={"question": "berapa total impor 2025", "exim": "ekspor"}, headers=H).get_json()
+    check("arus ikut kata pertanyaan (impor)", d4["exim"] == "impor", str(d4["exim"]))
+
+    print("== tampilkan data mentah per periode ==")
+    d5 = c.post("/api/ai/ask", json={"question": "tampilkan data ekspor Juni 2026", "exim": "ekspor"}, headers=H).get_json()
+    check("ada objek tabel", isinstance(d5.get("tabel"), dict), str(type(d5.get("tabel"))))
+    check("kolom terisi", bool(d5["tabel"]["kolom"]), str(d5["tabel"].get("kolom")))
+    check("ada baris ditampilkan", d5["tabel"]["ditampilkan"] > 0, str(d5["tabel"]["ditampilkan"]))
+    check("periode Juni 2026", d5["tabel"]["periode"] == {"mulai": [2026, 6], "akhir": [2026, 6]},
+          str(d5["tabel"]["periode"]))
+    check("baris memang Juni 2026", all(r["periode"] == "2026-06" for r in d5["tabel"]["rows"]),
+          str(d5["tabel"]["rows"][:1]))
+    check("jawaban sebut menampilkan", "Menampilkan" in d5["answer"], d5["answer"][:80])
+
+    d6 = c.post("/api/ai/ask", json={"question": "berapa total ekspor 2026", "exim": "ekspor"}, headers=H).get_json()
+    check("pertanyaan biasa tanpa tabel", d6.get("tabel") is None, str(d6.get("tabel")))
+
+    d7 = c.post("/api/ai/ask", json={"question": "tampilkan data impor 2025-03", "exim": "ekspor"}, headers=H).get_json()
+    check("tabel ikut arus impor", d7.get("tabel") is not None and d7["exim"] == "impor", str(d7.get("exim")))
+    check("periode 2025-03", d7["tabel"]["periode"] == {"mulai": [2025, 3], "akhir": [2025, 3]},
+          str(d7["tabel"].get("periode")))
 
     print("== audit log ==")
     conn = get_connection()

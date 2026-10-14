@@ -2,6 +2,7 @@
 $question = '';
 $answer = null;
 $mode = null;
+$tabel = null;
 $api_error = null;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
@@ -22,6 +23,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             } else {
                 $answer = (string) ($d['answer'] ?? '');
                 $mode = (string) ($d['mode'] ?? '');
+                $tabel = is_array($d['tabel'] ?? null) ? $d['tabel'] : null;
             }
         } catch (\Throwable $e) {
             $api_error = $e->getMessage();
@@ -56,6 +58,44 @@ $canUse = $session->hasPermission('ai.use');
         <div class="muted" style="margin-bottom:6px">Jawaban <span class="badge <?= $mode === 'llm' ? 'ok' : 'warn'; ?>"><?= \KKP\View::e($mode); ?></span></div>
         <div style="white-space:pre-wrap;line-height:1.5"><?= \KKP\View::e($answer); ?></div>
     </div>
-    <p class="muted" style="margin-top:8px">Mode <code>lokal</code> = penjawab deterministik dari database (LLM belum dikonfigurasi). Isi <code>AI_API_URL</code>/<code>AI_API_KEY</code> di <code>.env</code> untuk mengaktifkan LLM.</p>
+    <?php if ($mode === 'llm'): ?>
+    <p class="muted" style="margin-top:8px">Dijawab oleh LLM (OpenRouter) berdasarkan konteks database.</p>
+    <?php else: ?>
+    <p class="muted" style="margin-top:8px">Mode <code>lokal</code> = penjawab deterministik dari database. Muncul bila LLM gagal/tak dikonfigurasi (<code>AI_API_URL</code>/<code>AI_API_KEY</code> di <code>.env</code>) atau kena limit/kuota.</p>
+    <?php endif; ?>
+
+    <?php if ($tabel !== null): ?>
+        <?php if (!empty($tabel['rows'])): ?>
+        <h3 style="margin-top:16px">Data mentah — <?= \KKP\View::num((int) $tabel['ditampilkan']); ?> dari <?= \KKP\View::num((int) $tabel['total']); ?> baris</h3>
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr>
+            <?php foreach ($tabel['kolom'] as $c): ?>
+                <th><?= \KKP\View::e($tabel['labels'][$c] ?? $c); ?></th>
+            <?php endforeach; ?>
+            </tr></thead>
+            <tbody>
+            <?php foreach ($tabel['rows'] as $r): ?>
+                <tr>
+                <?php foreach ($tabel['kolom'] as $c): $v = $r[$c] ?? null; ?>
+                    <?php if (in_array($c, ['vol_kg'], true)): ?>
+                        <td class="num"><?= $v !== null ? \KKP\View::num($v, 0) : '-'; ?></td>
+                    <?php elseif (in_array($c, ['nil_usd'], true)): ?>
+                        <td class="num"><?= $v !== null ? \KKP\View::num($v, 2) : '-'; ?></td>
+                    <?php elseif (in_array($c, ['harga_usd_kg'], true)): ?>
+                        <td class="num"><?= $v !== null ? \KKP\View::num($v, 4) : '-'; ?></td>
+                    <?php else: ?>
+                        <td><?= \KKP\View::e((string) ($v ?? '')); ?></td>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        </div>
+        <?php else: ?>
+        <p class="muted" style="margin-top:12px">Tidak ada baris data untuk filter/periode tersebut.</p>
+        <?php endif; ?>
+    <?php endif; ?>
 <?php endif; ?>
 <?php endif; ?>

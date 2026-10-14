@@ -24,7 +24,7 @@ if ($session !== null && $session->isLoggedIn()) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= KKP\View::e($config?->appName ?? 'KKP EXIM Platform'); ?> — <?= KKP\View::e($active); ?></title>
-<link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/app.css?v=<?= @filemtime(__DIR__ . '/../../public/assets/app.css') ?: time(); ?>">
 </head>
 <body>
 <?php if ($session !== null && $session->isLoggedIn()): ?>
@@ -54,8 +54,11 @@ if ($session !== null && $session->isLoggedIn()) {
         <a href="/asisten" class="<?= $active === '/asisten' ? 'on' : ''; ?>">Asisten AI</a>
         <a href="/data" class="<?= $active === '/data' ? 'on' : ''; ?>">Raw EXIM</a>
     </nav>
-    <div class="side-comms">
-        <div class="side-comms-head"><span>Komoditas</span><span class="count" id="sideCount"><?= count($side_list); ?></span></div>
+    <div class="side-comms" id="sideComms">
+        <button type="button" class="side-comms-head" id="sideCommsToggle" aria-expanded="false" aria-controls="sideList">
+            <span>Komoditas</span>
+            <span class="head-right"><span class="count" id="sideCount"><?= count($side_list); ?></span><span class="caret" aria-hidden="true">&#9656;</span></span>
+        </button>
         <div class="side-comms-list" id="sideList">
         <?php if ($side_err !== null): ?>
             <span class="muted">Komoditas tak termuat.</span>

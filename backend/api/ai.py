@@ -61,6 +61,117 @@ def _ctx_totals(exim, tb, tg):
     return r
 
 
+_SHOW_KEYS = (
+    "tampilkan", "tampil", "lihat", "tunjuk", "show", "daftar", "list",
+    "tabel", "raw exim", "raw_exim", "raw eksim", "raw exsim", "raw bps",
+    "data bps", "data mentah", "data raw", "baris data",
+)
+
+_RAW_COLS = (
+    "r.tahun", "r.bulan",
+    "CONCAT(r.tahun,'-',LPAD(r.bulan,2,'0')) AS periode",
+    "r.kode_hs_2022 AS kode_hs", "r.komoditas_5_2026 AS komoditas",
+    "r.provinsi_asal", "r.kode_negara", "r.negara",
+    "r.vol_kg", "r.nil_usd", "r.harga_usd_kg",
+)
+
+_RAW_COL_LABELS = {
+    "periode": "Periode", "kode_hs": "Kode HS", "komoditas": "Komoditas",
+    "provinsi_asal": "Provinsi Asal", "kode_negara": "Kode Negara",
+    "negara": "Negara", "vol_kg": "Volume (kg)", "nil_usd": "Nilai (USD)",
+    "harga_usd_kg": "Harga (USD/kg)",
+}
+
+
+def _want_rows(question):
+    """True bila pengguna minta menampilkan/melihat baris data mentah."""
+    ql = (question or "").lower()
+    return any(k in ql for k in _SHOW_KEYS)
+
+
+def _periode_label(periode):
+    """Bentuk label '(periode 2026-01 s.d. 2026-06)' dari dict periode."""
+    tb, tg = periode.get("mulai"), periode.get("akhir")
+    if not tb and not tg:
+        return ""
+    def fmt(x):
+        if not x:
+            return None
+        y, m = (x if isinstance(x, (list, tuple)) else (x, None))
+        return f"{int(y):04d}-{int(m):02d}" if m else f"{int(y):04d}"
+    a, b = fmt(tb), fmt(tg)
+    if a and b and a != b:
+        return f" (periode {a} s.d. {b})"
+    return f" (periode {a or b})"
+
+
+_BULAN_NAMA = {
+    "januari": 1, "jan": 1, "january": 1,
+    "februari": 2, "feb": 2, "february": 2,
+    "maret": 3, "mar": 3, "march": 3,
+    "april": 4, "apr": 4,
+    "mei": 5, "may": 5,
+    "juni": 6, "jun": 6, "june": 6,
+    "juli": 7, "jul": 7, "july": 7,
+    "agustus": 8, "agu": 8, "ags": 8, "aug": 8, "august": 8,
+    "september": 9, "sep": 9, "sept": 9,
+    "oktober": 10, "okt": 10, "oct": 10, "october": 10,
+    "november": 11, "nov": 11,
+    "desember": 12, "des": 12, "dec": 12, "december": 12,
+}
+
+
+def _periode_dari_teks(question):
+    """Tarik periode dari teks: '2026-06', '06/2026', 'Juni 2026', atau '2025'.
+
+    Return (tahun, bulan|None) atau None.
+    """
+    q = (question or "").lower()
+    m = re.search(r"\b((?:19|20)\d{2})[-/](0?[1-9]|1[0-2])\b", q)
+    if m:
+        return (int(m.group(1)), int(m.group(2)))
+    m = re.search(r"\b(0?[1-9]|1[0-2])[-/]((?:19|20)\d{2})\b", q)
+    if m:
+        return (int(m.group(2)), int(m.group(1)))
+    for nama, bln in _BULAN_NAMA.items():
+        if re.search(r"\b" + nama + r"\b", q):
+            ym = re.search(r"\b((?:19|20)\d{2})\b", q)
+            if ym:
+                return (int(ym.group(1)), bln)
+    ym = re.search(r"\b((?:19|20)\d{2})\b", q)
+    if ym:
+        return (int(ym.group(1)), None)
+    return None
+
+
+def _raw_rows(exim, tb, tg, komoditas=None, negara=None, limit=25):
+    """Ambil baris raw_exim terfilter (periode/komoditas/negara) + total."""
+    where = ["r.exim_type = %s"]
+    params = [exim]
+    if tb:
+        where.append("(r.tahun, r.bulan) >= (%s,%s)")
+        params += [tb[0], tb[1] or 1]
+    if tg:
+        where.append("(r.tahun, r.bulan) <= (%s,%s)")
+        params += [tg[0], tg[1] or 12]
+    if komoditas:
+        where.append("r.komoditas_5_2026 LIKE %s")
+        params.append("%" + komoditas + "%")
+    if negara:
+        where.append("r.kode_negara = %s")
+        params.append(negara)
+    w = " AND ".join(where)
+    total = int(_row("SELECT COUNT(*) AS n FROM raw_exim r WHERE " + w, params)[0]["n"])
+    rows = _row(
+        "SELECT " + ", ".join(_RAW_COLS) + " FROM raw_exim r WHERE " + w +
+        " ORDER BY r.tahun DESC, r.bulan DESC, r.nil_usd DESC LIMIT %s",
+        params + [limit])
+    kolom = [c for c in _RAW_COL_LABELS if c in rows[0]] if rows else \
+        ["periode", "kode_hs", "komoditas", "negara", "vol_kg", "nil_usd", "harga_usd_kg"]
+    return {"total": total, "ditampilkan": len(rows), "kolom": kolom,
+            "labels": {k: _RAW_COL_LABELS.get(k, k) for k in kolom}, "rows": rows}
+
+
 def _konteks(exim, tb, tg, limit=10):
     where = "exim_type=%s"
     params = [exim]
@@ -79,9 +190,14 @@ def _konteks(exim, tb, tg, limit=10):
         "SELECT negara, kode_negara, COALESCE(SUM(nil_usd),0) nilai_usd FROM raw_exim WHERE " + where +
         " AND NULLIF(negara,'') IS NOT NULL GROUP BY negara, kode_negara "
         "ORDER BY nilai_usd DESC LIMIT %s", params + [limit])
+    per_tahun = _row(
+        "SELECT tahun, COALESCE(SUM(nil_usd),0) nilai_usd, COALESCE(SUM(vol_kg),0) vol_kg, "
+        "COUNT(*) baris FROM raw_exim WHERE " + where +
+        " GROUP BY tahun ORDER BY tahun", params)
     return {
         "exim": exim, "periode": {"mulai": tb, "akhir": tg},
         "totals": _ctx_totals(exim, tb, tg),
+        "per_tahun": per_tahun,
         "top_komoditas": komoditas, "top_negara": negara,
     }
 
@@ -93,8 +209,15 @@ def _local_answer(question, ctx):
     exim = ctx["exim"]
     komo = ctx["top_komoditas"]
     neg = ctx["top_negara"]
+    baris_tbl = ctx.get("tabel")
     lines = []
 
+    if baris_tbl:
+        periodo = _periode_label(ctx.get("periode") or {})
+        lines.append(
+            f"Menampilkan {baris_tbl['ditampilkan']} dari {baris_tbl['total']:,} baris "
+            f"data {exim}{periodo} (urut nilai terbesar)."
+        )
     if any(k in q for k in ("total", "berapa", "nilai", "volume")):
         lines.append(
             f"Total {exim}: US${float(t['nilai_usd']):,.0f} dari {int(t['baris']):,} baris, "
@@ -161,16 +284,45 @@ def ask():
     if not question:
         raise ApiError("question wajib diisi")
     exim = parse_exim(request, default=body.get("exim", "ekspor"))
+    # Selaraskan arus dengan kata kunci pada pertanyaan (mis. pengguna memilih
+    # "ekspor" di form tapi bertanya "berapa total impor 2025?").
+    ql = question.lower()
+    if "impor" in ql or "import" in ql:
+        exim = "impor"
+    elif "ekspor" in ql or "export" in ql:
+        exim = "ekspor"
     tb = parse_bulan(body.get("mulai")) or parse_bulan(str(body.get("tahun") or ""))
     tg = parse_bulan(body.get("akhir"))
+    # Bila tak ada periode eksplisit, coba tarik periode dari teks pertanyaan
+    # (mis. "tampilkan data ekspor Juni 2026", "2026-06", atau "tahun 2025").
+    if tb is None and tg is None:
+        teks = _periode_dari_teks(question)
+        if teks:
+            tb = (teks[0], teks[1] or 1)
+            tg = (teks[0], teks[1] or 12)
 
     ctx = _konteks(exim, tb, tg)
+
+    # Intent "tampilkan data": sertakan baris raw_exim terfilter.
+    tabel = None
+    if _want_rows(question):
+        komoditas = (body.get("komoditas") or "").strip() or None
+        negara = (body.get("negara") or "").strip() or None
+        tabel = _raw_rows(exim, tb, tg, komoditas=komoditas, negara=negara, limit=25)
+        tabel["periode"] = {"mulai": tb, "akhir": tg}
+        ctx["periode"] = {"mulai": tb, "akhir": tg}
+        ctx["tabel"] = tabel
+        ctx["contoh_baris"] = tabel["rows"][:10]
+
     answer = _llm_answer(question, ctx)
     mode = "llm" if (answer and not answer.startswith("[LLM gagal")) else "lokal"
     if answer is None:
         answer = _local_answer(question, ctx)
 
     sess = request.environ["auth_session"]
-    _log_ask(sess["user_id"], question, answer, mode, ctx)
+    _log_ask(sess["user_id"], question, answer, mode, {
+        "exim": exim, "periode": {"mulai": tb, "akhir": tg},
+        "tabel_total": (tabel or {}).get("total"),
+    })
     return jsonify({"question": question, "answer": answer, "mode": mode,
-                    "exim": exim, "konteks": ctx})
+                    "exim": exim, "konteks": ctx, "tabel": tabel})

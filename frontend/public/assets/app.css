@@ -37,12 +37,17 @@ a { color: var(--brand); text-decoration: none; }
 .side-nav a.on { background: var(--brand); color: #fff; font-weight: 600; }
 
 .side-comms { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 10px 10px; }
-.side-comms-head { display: flex; justify-content: space-between; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #9fc0dd; }
+.side-comms-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 8px 10px; font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #9fc0dd; background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
+.side-comms-head:hover { background: #1c3f63; color: #fff; }
+.side-comms-head .head-right { display: flex; align-items: center; gap: 6px; }
 .side-comms-head .count { background: #1c3f63; border-radius: 12px; padding: 0 8px; color: #cfe4f7; }
-.side-comms-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
-.side-comms-list a { color: #cfe4f7; padding: 6px 12px; border-radius: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-comms-head .caret { display: inline-block; transition: transform .15s ease; font-size: 10px; }
+.side-comms.open .side-comms-head .caret { transform: rotate(90deg); }
+.side-comms-list { flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 1px; }
+.side-comms.open .side-comms-list { display: flex; }
+.side-comms-list a { flex: 0 0 auto; color: #cfe4f7; padding: 6px 12px; border-radius: 6px; font-size: 12.5px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-comms-list a:hover { background: #1c3f63; color: #fff; }
-.side-comms-list .muted { color: #7fa3c2; padding: 8px 12px; font-size: 12px; }
+.side-comms-list .muted { flex: 0 0 auto; color: #7fa3c2; padding: 8px 12px; font-size: 12px; }
 
 .side-user { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-top: 1px solid #1c3f63; font-size: 12px; }
 .side-user-name small { display: block; color: #9fc0dd; }
