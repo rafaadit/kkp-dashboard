@@ -51,10 +51,11 @@ if ($uri !== '/' && is_file($static)) {
 
 try {
     if ($uri === '/login') {
-        if ($session->isLoggedIn()) {
+        if ($session->isLoggedIn() && $session->validate()) {
             redirect('/');
         }
         $error = null;
+        $notice = isset($_GET['expired']) ? 'Sesi Anda berakhir. Silakan masuk kembali.' : null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = $session->login($_POST['email'] ?? '', $_POST['password'] ?? '');
             if ($error === null) {
@@ -62,7 +63,8 @@ try {
             }
         }
         http_response_code($error ? 401 : 200);
-        render_view('login', ['config' => $config, 'error' => $error, 'email' => $_POST['email'] ?? '']);
+        render_view('login', ['config' => $config, 'error' => $error, 'notice' => $notice,
+                              'email' => $_POST['email'] ?? '']);
         exit;
     }
 
@@ -72,9 +74,14 @@ try {
         exit;
     }
 
-    // Semua halaman lain wajib login.
+    // Semua halaman lain wajib login + token masih valid di backend.
     if (!$session->isLoggedIn()) {
         redirect('/login');
+        exit;
+    }
+    if (!$session->validate()) {
+        $session->logout();
+        redirect('/login?expired=1');
         exit;
     }
     $user = $session->user();

@@ -40,6 +40,7 @@ final class Session
         }
         $_SESSION['token'] = $body['token'];
         $_SESSION['user'] = $body['user'] ?? null;
+        $_SESSION['token_checked'] = time();
         $this->api->setToken($body['token']);
         return null;
     }
@@ -64,6 +65,35 @@ final class Session
     public function isLoggedIn(): bool
     {
         return (bool) $this->token();
+    }
+
+    /**
+     * Pastikan token di sesi masih valid di backend. Bila kedaluwarsa/di-revoke
+     * kembalikan false sehingga pemanggil bisa logout + arahkan ke /login.
+     * Hasil dicek di-cache sebentar agar tidak menambah 1 request tiap halaman.
+     * Bila API tak terjangkau, anggap masih valid (jangan paksa logout).
+     */
+    public function validate(int $cacheSeconds = 120): bool
+    {
+        if (!$this->token()) {
+            return false;
+        }
+        $last = (int) ($_SESSION['token_checked'] ?? 0);
+        if ($last > 0 && (time() - $last) < $cacheSeconds) {
+            return true;
+        }
+        try {
+            [$status] = $this->api->get('/api/auth/me');
+        } catch (\Throwable $e) {
+            return true;
+        }
+        if ($status === 401) {
+            return false;
+        }
+        if ($status === 200) {
+            $_SESSION['token_checked'] = time();
+        }
+        return true;
     }
 
     public function token(): ?string

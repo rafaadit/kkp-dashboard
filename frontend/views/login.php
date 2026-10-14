@@ -2,6 +2,11 @@
   <form class="login card" method="post" action="/login">
     <h1><?= \KKP\View::e($config->appName); ?></h1>
     <p class="muted">Masuk untuk mengakses Market Intelligence &amp; EXIM Automation</p>
+    <?php if (!empty($error)): ?>
+    <div class="alert alert-danger"><?= \KKP\View::e($error); ?></div>
+    <?php elseif (!empty($notice)): ?>
+    <div class="alert alert-warning"><?= \KKP\View::e($notice); ?></div>
+    <?php endif; ?>
     <label>Email</label>
     <input type="email" name="email" value="<?= \KKP\View::e($email ?? ''); ?>" required autofocus>
     <label>Password</label>
