@@ -91,6 +91,27 @@ def main():
     check("periode 2025-03", d7["tabel"]["periode"] == {"mulai": [2025, 3], "akhir": [2025, 3]},
           str(d7["tabel"].get("periode")))
 
+    print("== filter komoditas/negara dari teks ==")
+    d8 = c.post("/api/ai/ask", json={"question": "tampilkan data ekspor udang 2025", "exim": "ekspor"}, headers=H).get_json()
+    f8 = (d8.get("tabel") or {}).get("filter") or {}
+    check("komoditas Udang terdeteksi", f8.get("komoditas") == "Udang", str(f8))
+    check("baris komoditas Udang",
+          d8["tabel"]["ditampilkan"] > 0 and all("Udang" in (r["komoditas"] or "") for r in d8["tabel"]["rows"]),
+          str(d8["tabel"]["rows"][:1]))
+    check("jawaban sebut filter", "(filter:" in d8["answer"] and "Udang" in d8["answer"], d8["answer"][:120])
+
+    d9 = c.post("/api/ai/ask", json={"question": "tampilkan data impor Amerika Serikat 2025", "exim": "ekspor"}, headers=H).get_json()
+    f9 = (d9.get("tabel") or {}).get("filter") or {}
+    check("negara US terdeteksi", f9.get("negara") == "US", str(f9))
+    check("baris negara US",
+          d9["tabel"]["ditampilkan"] > 0 and all(r["kode_negara"] == "US" for r in d9["tabel"]["rows"]),
+          str(d9["tabel"]["rows"][:1]))
+
+    d10 = c.post("/api/ai/ask", json={"question": "tampilkan data ekspor udang ke Amerika Serikat 2025",
+                                      "exim": "ekspor"}, headers=H).get_json()
+    check("komoditas+negara sekaligus", d10["tabel"].get("filter") == {"komoditas": "Udang", "negara": "US"},
+          str(d10["tabel"].get("filter")))
+
     print("== audit log ==")
     conn = get_connection()
     cur = conn.cursor()

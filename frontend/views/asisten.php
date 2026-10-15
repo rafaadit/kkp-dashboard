@@ -40,7 +40,7 @@ $canUse = $session->hasPermission('ai.use');
 <?php else: ?>
 <form method="post" action="/asisten">
     <div class="filters">
-        <input type="text" name="question" placeholder="Contoh: berapa total ekspor 2026? / komoditas utama ekspor" value="<?= \KKP\View::e($question); ?>" style="min-width:400px">
+        <input type="text" name="question" placeholder="Contoh: tampilkan data ekspor udang ke Amerika Serikat 2025" value="<?= \KKP\View::e($question); ?>" style="min-width:400px">
         <select name="exim">
             <option value="ekspor" <?= ($_POST['exim'] ?? '') === 'ekspor' ? 'selected' : ''; ?>>Ekspor</option>
             <option value="impor" <?= ($_POST['exim'] ?? '') === 'impor' ? 'selected' : ''; ?>>Impor</option>
@@ -66,7 +66,13 @@ $canUse = $session->hasPermission('ai.use');
 
     <?php if ($tabel !== null): ?>
         <?php if (!empty($tabel['rows'])): ?>
-        <h3 style="margin-top:16px">Data mentah — <?= \KKP\View::num((int) $tabel['ditampilkan']); ?> dari <?= \KKP\View::num((int) $tabel['total']); ?> baris</h3>
+        <?php
+        $tf = $tabel['filter'] ?? [];
+        $chips = [];
+        if (!empty($tf['komoditas'])) { $chips[] = 'komoditas: ' . $tf['komoditas']; }
+        if (!empty($tf['negara'])) { $chips[] = 'negara: ' . $tf['negara']; }
+        ?>
+        <h3 style="margin-top:16px">Data mentah — <?= \KKP\View::num((int) $tabel['ditampilkan']); ?> dari <?= \KKP\View::num((int) $tabel['total']); ?> baris<?php if ($chips): ?> <span class="muted">(<?= \KKP\View::e(implode(', ', $chips)); ?>)</span><?php endif; ?></h3>
         <div class="tbl-scroll">
         <table class="tbl">
             <thead><tr>

@@ -13,6 +13,8 @@ import re
 import urllib.request
 import uuid
 
+from functools import lru_cache
+
 from flask import Blueprint, jsonify, request
 
 from backend.db import get_connection
@@ -144,6 +146,97 @@ def _periode_dari_teks(question):
     return None
 
 
+_NEGARA_ALIAS = {
+    "amerika serikat": "US", "united states": "US", "usa": "US",
+    "tiongkok": "CN", "cina": "CN", "china": "CN",
+    "jepang": "JP", "japan": "JP",
+    "korea selatan": "KR", "korsel": "KR", "korea utara": "KP",
+    "inggris": "GB", "united kingdom": "GB", "britania raya": "GB",
+    "prancis": "FR", "perancis": "FR", "france": "FR",
+    "jerman": "DE", "germany": "DE",
+    "belanda": "NL", "netherlands": "NL",
+    "spanyol": "ES", "spain": "ES", "italia": "IT", "italy": "IT",
+    "rusia": "RU", "russia": "RU",
+    "thailand": "TH", "muangthai": "TH",
+    "vietnam": "VN", "viet nam": "VN",
+    "malaysia": "MY", "singapura": "SG", "singapore": "SG",
+    "india": "IN", "australia": "AU",
+    "chili": "CL", "chile": "CL",
+    "norwegia": "NO", "norway": "NO",
+    "kanada": "CA", "canada": "CA",
+    "brasil": "BR", "brazil": "BR",
+    "filipina": "PH", "philippines": "PH",
+    "myanmar": "MM", "hongkong": "HK", "hong kong": "HK",
+    "taiwan": "TW",
+    "uni emirat arab": "AE", "united arab emirates": "AE",
+    "arab saudi": "SA", "saudi arabia": "SA",
+    "papua nugini": "PG", "selandia baru": "NZ", "new zealand": "NZ",
+}
+
+_KOMODITAS_ALIAS = {
+    "cumi": "Cumi-Sotong-Gurita", "cumi-cumi": "Cumi-Sotong-Gurita",
+    "sotong": "Cumi-Sotong-Gurita", "gurita": "Cumi-Sotong-Gurita",
+    "tuna": "Tuna-Cakalang-Tongkol", "cakalang": "Tuna-Cakalang-Tongkol",
+    "tongkol": "Tuna-Cakalang-Tongkol",
+    "rumput laut": "Rumput Laut", "seaweed": "Rumput Laut",
+    "rajungan": "Rajungan-Kepiting", "kepiting": "Rajungan-Kepiting",
+    "udang": "Udang", "lobster": "Lobster", "udang karang": "Lobster",
+    "kerapu": "Kerapu", "kakap": "Kakap Merah", "bandeng": "Bandeng",
+    "makarel": "Makarel", "kembung": "Makarel", "mackerel": "Makarel",
+    "salmon": "Salmon-Trout", "trout": "Salmon-Trout",
+    "kerang": "Kekerangan", "remis": "Kekerangan",
+    "teripang": "Teripang", "teri": "Teri",
+    "sarden": "Sarden-Sardinella", "sardin": "Sarden-Sardinella",
+    "sidat": "Sidat", "tilapia": "Tilapia", "nila": "Tilapia",
+    "surimi": "Surimi", "mutiara": "Mutiara",
+}
+
+
+@lru_cache(maxsize=1)
+def _ms_negara_list():
+    rows = _row("SELECT nama_negara nama, kode_negara kode FROM ms_negara", [])
+    return [(r["nama"], r["kode"]) for r in rows if r["nama"]]
+
+
+@lru_cache(maxsize=1)
+def _komoditas_list():
+    rows = _row("SELECT DISTINCT komoditas_5_2026 k FROM raw_exim "
+                "WHERE NULLIF(komoditas_5_2026,'') IS NOT NULL", [])
+    return sorted((r["k"] for r in rows), key=len, reverse=True)
+
+
+def _match_alias(alias_map, text):
+    """Alias map: kunci dicari sebagai kata utuh (cocok terpanjang dulu)."""
+    for alias, val in sorted(alias_map.items(), key=lambda kv: -len(kv[0])):
+        if re.search(r"\b" + re.escape(alias) + r"\b", text):
+            return val
+    return None
+
+
+def _detect_negara(question):
+    """Tebak kode_negara (alpha-2) dari teks (nama Indonesia/Inggris)."""
+    ql = " " + (question or "").lower() + " "
+    kode = _match_alias(_NEGARA_ALIAS, ql)
+    if kode:
+        return kode
+    for nama, kode in _ms_negara_list():
+        if re.search(r"\b" + re.escape(nama.lower()) + r"\b", ql):
+            return kode
+    return None
+
+
+def _detect_komoditas(question):
+    """Tebak komoditas_5_2026 dari teks."""
+    ql = (question or "").lower()
+    nama = _match_alias(_KOMODITAS_ALIAS, ql)
+    if nama:
+        return nama
+    for kandidat in _komoditas_list():
+        if kandidat.lower() in ql:
+            return kandidat
+    return None
+
+
 def _raw_rows(exim, tb, tg, komoditas=None, negara=None, limit=25):
     """Ambil baris raw_exim terfilter (periode/komoditas/negara) + total."""
     where = ["r.exim_type = %s"]
@@ -214,9 +307,16 @@ def _local_answer(question, ctx):
 
     if baris_tbl:
         periodo = _periode_label(ctx.get("periode") or {})
+        f = baris_tbl.get("filter") or {}
+        filt = []
+        if f.get("komoditas"):
+            filt.append("komoditas " + f["komoditas"])
+        if f.get("negara"):
+            filt.append("negara " + f["negara"])
+        fs = (" (filter: " + ", ".join(filt) + ")") if filt else ""
         lines.append(
             f"Menampilkan {baris_tbl['ditampilkan']} dari {baris_tbl['total']:,} baris "
-            f"data {exim}{periodo} (urut nilai terbesar)."
+            f"data {exim}{periodo}{fs} — urut nilai terbesar."
         )
     if any(k in q for k in ("total", "berapa", "nilai", "volume")):
         lines.append(
@@ -306,10 +406,11 @@ def ask():
     # Intent "tampilkan data": sertakan baris raw_exim terfilter.
     tabel = None
     if _want_rows(question):
-        komoditas = (body.get("komoditas") or "").strip() or None
-        negara = (body.get("negara") or "").strip() or None
+        komoditas = (body.get("komoditas") or "").strip() or _detect_komoditas(question)
+        negara = (body.get("negara") or "").strip() or _detect_negara(question)
         tabel = _raw_rows(exim, tb, tg, komoditas=komoditas, negara=negara, limit=25)
         tabel["periode"] = {"mulai": tb, "akhir": tg}
+        tabel["filter"] = {"komoditas": komoditas, "negara": negara}
         ctx["periode"] = {"mulai": tb, "akhir": tg}
         ctx["tabel"] = tabel
         ctx["contoh_baris"] = tabel["rows"][:10]
