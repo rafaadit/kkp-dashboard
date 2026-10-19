@@ -82,6 +82,11 @@ Header: `Authorization: Bearer <token>`.
   (sumber tetap terpisah, tidak digabung).
 - `/trademap` Browse TradeMap (KPI, top partner/produk, pagination).
 - `/data` Browse RAW EXIM (pagination, filter status/periode/komoditas).
+  Tombol **Export Excel (.xlsx)** → `/data/export` mengikuti filter aktif dan
+  mengunduh SEMUA baris (streaming dari `/api/data/raw_exim.xlsx`, `set_time_limit(600)`).
+- `/asisten` Asisten AI: tanya-jawab dari DB; prompt seperti
+  "tampilkan data ekspor udang ke Amerika Serikat 2025" mengembalikan tabel
+  data mentah (filter periode/komoditas/negara dideteksi dari teks).
 - `/login`, `/logout`.
 
 ## Test

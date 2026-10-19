@@ -24,6 +24,8 @@ Pengujian: `.venv/bin/python tests/test_api.py` (test client, tanpa server berdi
 | `GET /api/explore/negara` | Top negara tujuan/asal + ringkasan kelompok negara |
 | `GET /api/explore/perbandingan` | Perbandingan 2 rentang periode (delta + pertumbuhan %) |
 | `GET /api/data/raw_exim` | Browse baris raw_exim (pagination + filter) |
+| `GET /api/data/raw_exim.xlsx` | Export Excel (.xlsx) SELURUH baris sesuai filter (tanpa pagination) |
+| `POST /api/ai/ask` | Tanya-jawab asisten; bila intent "tampilkan data" mengembalikan field `tabel` |
 
 ### Parameter umum (untuk seluruh endpoint explore/data)
 
@@ -38,6 +40,10 @@ Pengujian: `.venv/bin/python tests/test_api.py` (test client, tanpa server berdi
 | `limit` | `15` (default; maks per endpoint 50/200) | Jumlah hasil |
 | `page` | `1` | Halaman (khusus browse) |
 | `status` | `ready` / `needs_validation` | Khusus browse |
+
+`raw_exim.xlsx` memakai filter yang sama (tanpa `page`/`limit`) dan mengembalikan
+file `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` dengan
+38 kolom (header label Indonesia).
 
 `perbandingan` memakai `periode_a_mulai`, `periode_a_akhir`, `periode_b_mulai`,
 `periode_b_akhir`. Jika periode B kosong, dihitung 1 tahun sebelum A.

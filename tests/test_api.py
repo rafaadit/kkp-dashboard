@@ -183,6 +183,28 @@ def main():
     r = c.get("/api/data/raw_exim?exim=impor&mulai=2026-06&limit=1", headers=H)
     check("browse impor total==1624", r.get_json()["total"] == 1624)
 
+    print("== api/data/raw_exim.xlsx (export Excel) ==")
+    import io
+    import openpyxl
+    r = c.get("/api/data/raw_exim.xlsx?exim=impor&mulai=2026-06", headers=H)
+    check("export 200", r.status_code == 200, str(r.status_code))
+    check("export content-type xlsx",
+          "spreadsheetml" in (r.headers.get("Content-Type") or ""),
+          r.headers.get("Content-Type"))
+    check("export attachment", "attachment" in (r.headers.get("Content-Disposition") or ""),
+          r.headers.get("Content-Disposition"))
+    check("export signature PK", r.data[:4] == b"PK\x03\x04", str(r.data[:4]))
+    wb = openpyxl.load_workbook(io.BytesIO(r.data), read_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    hdr = list(rows[0])
+    check("export punya header Periode", "Periode" in hdr, str(hdr[:6]))
+    check("export header 38 kolom", len(hdr) == 38, str(len(hdr)))
+    check("export 1624 baris impor 2026-06", len(rows) - 1 == 1624, str(len(rows) - 1))
+    pid = hdr.index("Periode")
+    check("export periode terisi", all(str(x[pid]) == "202606" for x in rows[1:]),
+          str(rows[1][pid]) if len(rows) > 1 else "kosong")
+
     print("== report/exec_summary ==")
     r = c.get("/api/report/exec_summary?tahun=2026&bulan_awal=1&bulan_akhir=6", headers=H)
     check("exec_summary 200", r.status_code == 200)

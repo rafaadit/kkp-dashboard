@@ -96,6 +96,16 @@ try {
         case '/data':
             $view = 'raw_exim';
             break;
+        case '/data/export':
+            @set_time_limit(600);
+            $api = $session->api();
+            $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+            [$st, $errbody, $cerr] = $api->stream('/api/data/raw_exim.xlsx' . ($qs !== '' ? '?' . $qs : ''));
+            if ($st !== 200) {
+                http_response_code($st ?: 502);
+                echo 'Gagal mengekspor data.' . ($cerr !== '' ? ' (' . $cerr . ')' : '');
+            }
+            exit;
         case '/komoditas':
             $view = 'komoditas';
             break;

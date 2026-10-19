@@ -84,4 +84,61 @@ final class ApiClient
         $ctype = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         return [$status, $resp === false ? '' : $resp, $ctype];
     }
+
+    /**
+     * Streaming passthrough: teruskan body API langsung ke output (tanpa buffer
+     * seluruh file di memori). Header Content-Type & Content-Disposition diteruskan
+     * ke browser bila status 200. Return [status, body_pesan_error, curl_error].
+     */
+    public function stream(string $path, int $timeout = 300): array
+    {
+        $ch = curl_init($this->baseUrl . $path);
+        $headers = ['Accept: application/octet-stream'];
+        if ($this->token) {
+            $headers[] = 'Authorization: Bearer ' . $this->token;
+        }
+        $status = 0;
+        $ctype = '';
+        $disp = '';
+        $sent = false;
+        $errbuf = '';
+
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HEADERFUNCTION => function ($ch, $h) use (&$status, &$ctype, &$disp, &$sent) {
+                $line = trim($h);
+                if ($line === '') {
+                    if ($status === 200 && !$sent) {
+                        header('Content-Type: ' . ($ctype ?: 'application/octet-stream'));
+                        if ($disp !== '') {
+                            header('Content-Disposition: ' . $disp);
+                        }
+                        $sent = true;
+                    }
+                    return strlen($h);
+                }
+                if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+                    $status = (int) $m[1];
+                } elseif (stripos($line, 'content-type:') === 0) {
+                    $ctype = trim(substr($line, 13));
+                } elseif (stripos($line, 'content-disposition:') === 0) {
+                    $disp = trim(substr($line, 20));
+                }
+                return strlen($h);
+            },
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$status, &$sent, &$errbuf) {
+                if ($status === 200 && $sent) {
+                    echo $chunk;
+                } else {
+                    $errbuf .= $chunk;
+                }
+                return strlen($chunk);
+            },
+        ]);
+        $ok = curl_exec($ch);
+        $err = curl_error($ch);
+        return [$status, $errbuf, $ok === false ? $err : ''];
+    }
 }
