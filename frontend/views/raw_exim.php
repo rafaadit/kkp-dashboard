@@ -77,7 +77,7 @@ try {
             <td><?= \KKP\View::e($r['uraian']); ?></td>
             <td><?= \KKP\View::e($r['non_konsumsi_konsumsi']); ?></td>
             <td><?= \KKP\View::e($r['olahan_bukan']); ?></td>
-            <td><?= \KKP\View::e($r['asalbahanbaku']); ?></td>
+            <td><?= \KKP\View::e($r['asal_bahan_baku']); ?></td>
             <td><?= \KKP\View::e($r['kode_prov_asal']); ?></td>
             <td><?= \KKP\View::e($r['provinsi_asal']); ?></td>
             <td><?= \KKP\View::e($r['pulau_prov_asal']); ?></td>
