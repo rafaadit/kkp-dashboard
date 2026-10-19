@@ -19,7 +19,7 @@ if ($periode_ok) {
         $api_error = $e->getMessage();
         $d = null;
     }
-}   
+}
 
 $canGenerate = $session->hasPermission('report.generate_ppt');
 $canDownload = $session->hasPermission('report.view');
