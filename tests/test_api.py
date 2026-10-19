@@ -182,6 +182,9 @@ def main():
          "jenis_2_2026", "uraian_2", "uraian_id_en_2_2026"}))
     r = c.get("/api/data/raw_exim?exim=impor&mulai=2026-06&limit=1", headers=H)
     check("browse impor total==1624", r.get_json()["total"] == 1624)
+    r = c.get("/api/data/raw_exim?exim=ekspor&periode=2026-01&limit=1", headers=H)
+    check("browse periode tunggal==4080", r.get_json()["total"] == 4080, str(r.get_json()["total"]))
+    check("browse periode di filter", r.get_json()["filter"].get("periode") == "2026-01")
 
     print("== api/data/raw_exim.xlsx (export Excel) ==")
     import io
@@ -204,6 +207,15 @@ def main():
     pid = hdr.index("Periode")
     check("export periode terisi", all(str(x[pid]) == "202606" for x in rows[1:]),
           str(rows[1][pid]) if len(rows) > 1 else "kosong")
+
+    r = c.get("/api/data/raw_exim.xlsx?exim=ekspor&periode=2026-01", headers=H)
+    check("export periode 200", r.status_code == 200, str(r.status_code))
+    wb = openpyxl.load_workbook(io.BytesIO(r.data), read_only=True)
+    rows = list(wb.active.iter_rows(values_only=True))
+    hdr = list(rows[0])
+    pid = hdr.index("Periode")
+    check("export periode hanya 202601", len(rows) - 1 == 4080 and
+          all(str(x[pid]) == "202601" for x in rows[1:]), str(len(rows) - 1))
 
     print("== report/exec_summary ==")
     r = c.get("/api/report/exec_summary?tahun=2026&bulan_awal=1&bulan_akhir=6", headers=H)

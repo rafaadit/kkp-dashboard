@@ -126,6 +126,7 @@ def raw_exim():
                 "pages": (total + limit - 1) // limit if total else 0,
                 "filter": {
                     "exim": request.args.get("exim", "ekspor"),
+                    "periode": request.args.get("periode"),
                     "mulai": request.args.get("mulai"),
                     "akhir": request.args.get("akhir"),
                     "kelompok": request.args.get("kelompok"),

@@ -32,6 +32,7 @@ Pengujian: `.venv/bin/python tests/test_api.py` (test client, tanpa server berdi
 | Parameter | Contoh | Keterangan |
 |---|---|---|
 | `exim` | `ekspor` / `impor` | Wajib, default `ekspor` |
+| `periode` | `2026-01` | Satu bulan tertentu (setara mulai=akhir). Prioritas `mulai`/`akhir` bila keduanya diisi |
 | `mulai` | `2026-06`, `2026`, `202606` | Periode awal |
 | `akhir` | `2026-06`, `2026`, `202606` | Periode akhir |
 | `kelompok` | `I`, `I,III,IV` | Filter koding kelompok komoditas |

@@ -89,10 +89,12 @@ foreach ([
 [$c, $body] = http('GET', "$base/data?limit=5", null, $cookiefn);
 check('data menampilkan total baris', str_contains($body, 'Total') && str_contains($body, 'baris'), 'no total');
 
-[$c, $body] = http('GET', "$base/data?exim=impor&mulai=2026-06", null, $cookiefn);
+[$c, $body] = http('GET', "$base/data?exim=impor&periode=2026-06", null, $cookiefn);
+check('data filter periode tampil', str_contains($body, 'value="2026-06"'), 'periode tdk terisi');
 check('data punya tombol export', str_contains($body, '/data/export?') && str_contains($body, 'Export Excel'), 'no export btn');
+check('export link bawa periode', str_contains($body, 'periode=2026-06'), 'link export tanpa periode');
 
-[$c, $body, , $ctype] = http('GET', "$base/data/export?exim=impor&mulai=2026-06", null, $cookiefn);
+[$c, $body, , $ctype] = http('GET', "$base/data/export?exim=impor&periode=2026-06", null, $cookiefn);
 check('export xlsx 200', $c === 200, "$c");
 check('export content-type xlsx', str_contains($ctype, 'spreadsheetml'), $ctype);
 check('export body signature PK', substr($body, 0, 2) === 'PK', substr($body, 0, 4));

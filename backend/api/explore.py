@@ -29,6 +29,12 @@ def _filters(request):
 
     mulai = parse_bulan(request.args.get("mulai"))
     akhir = parse_bulan(request.args.get("akhir"))
+    periode = parse_bulan(request.args.get("periode"))
+    if periode:
+        if mulai is None:
+            mulai = periode
+        if akhir is None:
+            akhir = periode
 
     if mulai and akhir and (mulai[0], mulai[1] or 1) > (akhir[0], akhir[1] or 12):
         raise ApiError("'mulai' tidak boleh setelah 'akhir'")

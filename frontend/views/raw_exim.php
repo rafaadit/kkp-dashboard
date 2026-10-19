@@ -1,7 +1,6 @@
 <?php
 $exim = $_GET['exim'] ?? 'ekspor';
-$mulai = $_GET['mulai'] ?? '';
-$akhir = $_GET['akhir'] ?? '';
+$periode = $_GET['periode'] ?? '';
 $status = $_GET['status'] ?? '';
 $q = $_GET['q'] ?? '';
 $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -9,8 +8,7 @@ $limit = (int) ($_GET['limit'] ?? 25);
 if ($limit < 1 || $limit > 200) { $limit = 25; }
 
 $query = ['exim' => $exim, 'page' => $page, 'limit' => $limit];
-if ($mulai) { $query['mulai'] = $mulai; }
-if ($akhir) { $query['akhir'] = $akhir; }
+if ($periode) { $query['periode'] = $periode; }
 if ($status) { $query['status'] = $status; }
 if ($q) { $query['komoditas'] = $q; }
 try {
@@ -28,8 +26,7 @@ try {
         <option value="ekspor" <?= $exim === 'ekspor' ? 'selected' : ''; ?>>Ekspor</option>
         <option value="impor" <?= $exim === 'impor' ? 'selected' : ''; ?>>Impor</option>
     </select>
-    <input type="month" name="mulai" value="<?= \KKP\View::e($mulai); ?>">
-    <input type="month" name="akhir" value="<?= \KKP\View::e($akhir); ?>">
+    <input type="month" name="periode" value="<?= \KKP\View::e($periode); ?>" title="Periode (bulan)" aria-label="Periode">
     <input type="text" name="q" value="<?= \KKP\View::e($q); ?>" placeholder="cari komoditas">
     <select name="status">
         <option value="">Semua status</option>
@@ -39,8 +36,7 @@ try {
     <button class="btn btn-primary" type="submit">Cari</button>
     <?php
     $export_qs = ['exim' => $exim];
-    if ($mulai) { $export_qs['mulai'] = $mulai; }
-    if ($akhir) { $export_qs['akhir'] = $akhir; }
+    if ($periode) { $export_qs['periode'] = $periode; }
     if ($status) { $export_qs['status'] = $status; }
     if ($q) { $export_qs['komoditas'] = $q; }
     ?>
