@@ -60,6 +60,53 @@ final class ApiClient
         return $this->request('GET', $path);
     }
 
+    /**
+     * Jalankan beberapa GET secara paralel (curl_multi).
+     *
+     * @param array<string,string> $paths map key => path
+     * @return array<string,array{0:int,1:mixed}> map key => [status, body]
+     */
+    public function getMany(array $paths, int $timeout = 30): array
+    {
+        if (!$paths) {
+            return [];
+        }
+        $mh = curl_multi_init();
+        $handles = [];
+        $headers = ['Accept: application/json'];
+        if ($this->token) {
+            $headers[] = 'Authorization: Bearer ' . $this->token;
+        }
+        foreach ($paths as $key => $path) {
+            $ch = curl_init($this->baseUrl . $path);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$key] = $ch;
+        }
+        $running = null;
+        do {
+            $mrc = curl_multi_exec($mh, $running);
+            if ($running) {
+                curl_multi_select($mh, 1.0);
+            }
+        } while ($running > 0 && $mrc === CURLM_OK);
+        $out = [];
+        foreach ($handles as $key => $ch) {
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $resp = (string) curl_multi_getcontent($ch);
+            $decoded = json_decode($resp, true);
+            $out[$key] = [$code, $decoded === null ? $resp : $decoded];
+            curl_multi_remove_handle($mh, $ch);
+        }
+        curl_multi_close($mh);
+        return $out;
+    }
+
     public function post(string $path, array $payload): array
     {
         return $this->request('POST', $path, $payload);

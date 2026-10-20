@@ -43,4 +43,27 @@ final class View
     {
         return is_numeric($v) ? number_format((float) $v, $dec) : (string) ($v ?? '');
     }
+
+    /** Format ringkas angka besar (K/M/B/T) untuk KPI hero. */
+    public static function compact(mixed $v, int $dec = 2): string
+    {
+        if (!is_numeric($v)) {
+            return (string) ($v ?? '');
+        }
+        $n = (float) $v;
+        $abs = abs($n);
+        if ($abs >= 1e12) { return number_format($n / 1e12, $dec) . ' T'; }
+        if ($abs >= 1e9) { return number_format($n / 1e9, $dec) . ' B'; }
+        if ($abs >= 1e6) { return number_format($n / 1e6, $dec) . ' M'; }
+        if ($abs >= 1e3) { return number_format($n / 1e3, 1) . ' K'; }
+        return number_format($n, 0);
+    }
+
+    /** Nama bulan Indonesia (1-12). */
+    public static function bulan(int $m): string
+    {
+        $nama = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        return $nama[$m] ?? (string) $m;
+    }
 }

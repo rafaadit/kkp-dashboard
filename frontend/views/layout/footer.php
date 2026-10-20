@@ -1,54 +1,65 @@
 </main>
-<?php if ($session !== null && $session->isLoggedIn()): ?>
-    </div><!-- /.main -->
-</div><!-- /.layout -->
-<?php endif; ?>
-<footer class="footer">KKP EXIM Platform — Market Intelligence &amp; EXIM Automation | &copy; <?= date('Y'); ?></footer>
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M5 7h14l-2.5 4H7.5L5 7z"/><path d="M12 21a5 5 0 0 1 5-5"/><path d="M12 21a5 5 0 0 0-5-5"/></svg>
+      <span><?= KKP\View::e($appName ?? 'KKP EXIM Platform'); ?></span>
+    </div>
+    <div class="footer-src">
+      <span>Sumber Data Terverifikasi:</span>
+      <strong>KKP RI</strong><span>&middot;</span>
+      <strong>Badan Pusat Statistik</strong><span>&middot;</span>
+      <strong>UN Comtrade</strong>
+    </div>
+    <div class="footer-copy">&copy; <?= date('Y'); ?> KKP EXIM Platform. Hak Cipta Dilindungi.</div>
+  </div>
+</footer>
+<script src="/assets/waves.js?v=<?= @filemtime(__DIR__ . '/../../public/assets/waves.js') ?: time(); ?>"></script>
 <script>
 (function () {
-    var layout = document.getElementById('layout');
-    var toggle = document.getElementById('sideToggle');
-    if (toggle && layout) {
-        toggle.addEventListener('click', function () { layout.classList.toggle('show-side'); });
-    }
-    var list = document.getElementById('sideList');
-    var count = document.getElementById('sideCount');
-    var search = document.getElementById('sideSearch');
-    var comms = document.getElementById('sideComms');
-    var commsToggle = document.getElementById('sideCommsToggle');
-    if (comms && commsToggle) {
-        commsToggle.addEventListener('click', function () {
-            var open = comms.classList.toggle('open');
-            commsToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            if (open && search) search.focus();
+    var nav = document.getElementById('topnav');
+    var navToggle = document.getElementById('navToggle');
+    if (nav && navToggle) {
+        navToggle.addEventListener('click', function () {
+            var open = nav.classList.toggle('nav-open');
+            navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
     }
-    if (!list || !search) return;
-    var links = Array.prototype.slice.call(list.querySelectorAll('a'));
-    function render(filter) {
-        var f = (filter || '').toLowerCase();
-        var shown = 0;
-        links.forEach(function (a) {
-            var hit = !f || (a.textContent || '').toLowerCase().indexOf(f) !== -1;
-            a.style.display = hit ? '' : 'none';
-            if (hit) shown++;
+    Array.prototype.forEach.call(document.querySelectorAll('.nav-drop > .nav-link'), function (btn) {
+        btn.addEventListener('click', function (e) {
+            var drop = btn.parentNode;
+            if (window.matchMedia('(max-width: 900px)').matches) {
+                e.preventDefault();
+                drop.classList.toggle('open');
+            }
         });
-        if (count) count.textContent = shown;
+    });
+
+    var input = document.getElementById('komSearch');
+    var menu = document.getElementById('komMenu');
+    if (input && menu) {
+        var links = Array.prototype.slice.call(menu.querySelectorAll('a'));
+        var empty = menu.querySelector('.empty');
+        function filter() {
+            var q = (input.value || '').toLowerCase().trim();
+            var shown = 0;
+            links.forEach(function (a) {
+                var hit = !q || (a.textContent || '').toLowerCase().indexOf(q) !== -1;
+                a.style.display = hit ? '' : 'none';
+                if (hit) shown++;
+            });
+            if (!links.length && empty) empty.style.display = q ? 'none' : '';
+        }
+        function open() { menu.classList.add('open'); filter(); }
+        input.addEventListener('focus', open);
+        input.addEventListener('input', open);
+        document.addEventListener('click', function (e) {
+            if (!menu.contains(e.target) && e.target !== input) menu.classList.remove('open');
+        });
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { menu.classList.remove('open'); input.blur(); }
+        });
     }
-    search.addEventListener('input', function () {
-        if (search.value && comms && !comms.classList.contains('open')) {
-            comms.classList.add('open');
-            if (commsToggle) commsToggle.setAttribute('aria-expanded', 'true');
-        }
-        render(search.value);
-    });
-    search.addEventListener('focus', function () {
-        if (comms && !comms.classList.contains('open')) {
-            comms.classList.add('open');
-            if (commsToggle) commsToggle.setAttribute('aria-expanded', 'true');
-        }
-    });
-    render('');
 })();
 </script>
 </body>

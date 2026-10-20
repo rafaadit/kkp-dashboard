@@ -63,7 +63,7 @@ check('css content-type text/css', str_contains($body, '.sidebar') || str_contai
 
 echo "== pages ==";
 foreach ([
-    '/' => '<h1>Dashboard Ekspor/Impor</h1>',
+    '/' => 'Pusat Intelijen Pasar Perikanan Indonesia',
     '/komoditas' => '<h1>Analisis Komoditas</h1>',
     '/negara' => '<h1>Analisis Negara</h1>',
     '/provinsi' => '<h1>Ekspor Provinsi Asal</h1>',

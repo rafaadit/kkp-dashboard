@@ -58,9 +58,11 @@ Header: `Authorization: Bearer <token>`.
 
 ## Halaman
 
-- `/` Dashboard: KPI total (nilai USD, volume, setara segar, baris/HS/negara),
-  tabel per-bulan, breakdown kelompok koding I–IV. Filter exim + rentang periode.
-  Mendukung deep-link `/dashboard?komoditas=<nama>` (misal dari sidebar).
+- `/` Beranda: hero + filter (exim, periode, komoditas), 3 kartu komoditas
+  unggulan (delta MoM), grid analitik (tren nilai 12 bulan, top negara, kelompok
+  koding), grid provinsi asal, serta tabel ringkas ekspor/impor (MoM/YoY, surplus,
+  baris "Lainnya"). Klik kartu/baris mengarah ke halaman terkait. Mendukung
+  deep-link `/dashboard?komoditas=<nama>`.
 - `/komoditas` Top komoditas_5_2026 (volume, nilai, harga/kg, share %).
 - `/negara` Top negara tujuan/asal + kelompok negara.
 - `/provinsi` Top provinsi asal barang (ekspor) / bongkar (impor); bisa
@@ -100,13 +102,23 @@ Catatan: token sesi disimpan cookie; setiap permintaan ditambahkan
 `Authorization` oleh `ApiClient`. Semua angka diformat dengan
 `\KKP\View::num()`; semua output HTML di-escape `\KKP\View::e()`.
 
-## Layout (PHASE 5.1 — sidebar navigasi)
+## Layout (PHASE 5.2 — top nav gaya portal)
 
-- Sidebar (`layout/header.php`) berisi: brand, kotak pencarian komoditas,
-  menu halaman, daftar komoditas (urut A-Z, render server-side dari
-  `/api/explore/komoditas_list`), user + logout.
-- Klik komoditas → `/dashboard?komoditas=<nama>` (dashboard terfilter).
-- Pencarian mem-filter daftar komoditas klien-side (tanpa reload).
-- Mobile (< 920px): sidebar off-canvas, tombol hamburger di topbar.
-- Topbar menampilkan judul halaman + sumber data
-  (PDSPKP KKP · BPS · ITC TradeMap).
+- Tidak ada sidebar. `layout/header.php`: top nav fixed (brand, menu
+  Beranda/Analisis/Banding Negara/Perbandingan/Laporan dengan dropdown hover),
+  pencarian komoditas dengan dropdown hasil, chip user + logout, tombol
+  hamburger untuk mobile.
+- Ticker di bawah nav menampilkan 4 komoditas teratas (harga USD/kg + share)
+  dari `/api/explore/komoditas`; data diambil paralel bersama daftar komoditas
+  lewat `ApiClient::getMany()` (curl_multi).
+- `layout/footer.php`: footer sumber data + copyright, JS nav/dropdown/search,
+  dan `assets/waves.js` (animasi gelombang canvas, dekoratif).
+- Semua halaman memakai `app.css` baru (tema laut: teal/navy, kartu rounded,
+  tabel teal, pill tab, KPI, hero, responsif). Tanpa CDN/font eksternal —
+  CSS & JS lokal, aman offline.
+- Dashboard/beranda memakai satu batch `getMany()` (probe overview hanya bila
+  periode kosong, lalu 9 request paralel) sehingga load jauh lebih cepat.
+- Mobile (< 920px): nav off-canvas, hamburger; tabel lebar scroll horizontal
+  di dalam `.tbl-scroll`.
+- Helper format: `View::num()`, `View::compact()` (K/M/B/T), `View::bulan()`
+  (nama bulan Indonesia).
