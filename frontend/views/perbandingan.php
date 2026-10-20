@@ -211,6 +211,7 @@ if ($mode === 'banding') {
 </section>
 
 <?php if ($d['banding_komoditas']): ?>
+<div class="tbl-scroll">
 <table class="tbl">
     <thead><tr><th>Komoditas</th><th>BPS (USD)</th><th>BPS (kg)</th><th>TradeMap (USD)</th><th>Rasio TM/BPS</th></tr></thead>
     <tbody>
@@ -225,6 +226,7 @@ if ($mode === 'banding') {
     <?php endforeach; ?>
     </tbody>
 </table>
+</div>
 <?php else: ?>
 <p class="muted">Tidak ada pasangan komoditas yang namanya cocok antara BPS dan TradeMap untuk filter ini.</p>
 <?php endif; ?>
@@ -232,6 +234,7 @@ if ($mode === 'banding') {
 <section class="grid-2">
     <div>
         <h3>Komoditas — BPS</h3>
+        <div class="tbl-scroll">
         <table class="tbl">
             <thead><tr><th>Komoditas</th><th>Nilai (USD)</th><th>Volume (kg)</th></tr></thead>
             <tbody>
@@ -242,9 +245,11 @@ if ($mode === 'banding') {
             <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     </div>
     <div>
         <h3>Komoditas — TradeMap</h3>
+        <div class="tbl-scroll">
         <table class="tbl">
             <thead><tr><th>Komoditas</th><th>Nilai (USD)</th></tr></thead>
             <tbody>
@@ -254,11 +259,13 @@ if ($mode === 'banding') {
             <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     </div>
 </section>
 
 <?php if ($d['banding_negara']): ?>
 <h3>Negara tujuan/asal (pasangan nama cocok)</h3>
+<div class="tbl-scroll">
 <table class="tbl">
     <thead><tr><th>Negara</th><th>BPS (USD)</th><th>BPS (kg)</th><th>TradeMap (USD)</th><th>Rasio TM/BPS</th></tr></thead>
     <tbody>
@@ -273,6 +280,7 @@ if ($mode === 'banding') {
     <?php endforeach; ?>
     </tbody>
 </table>
+</div>
 <?php endif; ?>
 <?php endif; ?>
 <?php endif; ?>
@@ -306,6 +314,7 @@ if ($mode === 'banding') {
         <div class="v">Volume <?= \KKP\View::num($d['delta']['pertumbuhan_volume_persen'] ?? 0, 2); ?>%</div>
     </div>
 </section>
+<div class="tbl-scroll">
 <table class="tbl">
     <thead><tr><th></th><th>Periode A</th><th>Periode B</th><th>Delta</th></tr></thead>
     <tbody>
@@ -319,6 +328,7 @@ if ($mode === 'banding') {
     <?php endforeach; ?>
     </tbody>
 </table>
+</div>
 <p class="muted">A: <?= \KKP\View::e($d['periode_a']['mulai']); ?> → <?= \KKP\View::e($d['periode_a']['akhir']); ?><br>B: <?= \KKP\View::e($d['periode_b']['mulai']); ?> → <?= \KKP\View::e($d['periode_b']['akhir']); ?></p>
 <?php endif; ?>
 <?php endif; ?>

@@ -29,6 +29,7 @@ try {
 </form>
 <?php if ($d): ?>
 <p class="muted">Total nilai: <strong>USD <?= \KKP\View::num($d['total_nilai_usd'], 2); ?></strong> (<?= $d['limit']; ?> teratas)</p>
+<div class="tbl-scroll">
 <table class="tbl">
     <thead><tr>
         <th>Komoditas</th><th>HS unik</th><th>Baris</th>
@@ -48,4 +49,5 @@ try {
     <?php endforeach; ?>
     </tbody>
 </table>
+</div>
 <?php endif; ?>
