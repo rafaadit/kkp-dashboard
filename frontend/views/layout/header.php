@@ -1,6 +1,7 @@
 <?php /** layout header — top navigation (home-user style) */ [$name, $active, $user, $config, $session] = [$__name__ ?? '', $active ?? '', $user ?? [], $config ?? null, $session ?? null];
 $isLogged = $session !== null && $session->isLoggedIn();
 $appName = $config?->appName ?? 'KKP EXIM Platform';
+$logo_ver = @filemtime(__DIR__ . '/../../public/assets/logo-kkp.png') ?: time();
 
 $komoditas_list = [];
 $list_err = null;
@@ -11,7 +12,7 @@ if ($isLogged) {
         $side_api = $session->api();
         $side_res = $side_api->getMany([
             'list' => '/api/explore/komoditas_list?exim=' . urlencode($exim_side),
-            'ticker' => '/api/explore/komoditas?exim=' . urlencode($exim_side) . '&limit=4',
+            'ticker' => '/api/explore/komoditas?exim=' . urlencode($exim_side) . '&limit=3',
         ]);
         [$st, $json] = $side_res['list'] ?? [0, null];
         if ($st === 200 && is_array($json) && isset($json['komoditas'])) {
@@ -36,7 +37,7 @@ $nav = [
 $analisis = ['/komoditas', '/negara', '/provinsi', '/potensi', '/kompetitor', '/trademap'];
 $laporan = ['/laporan', '/data', '/asisten'];
 $initial = mb_strtoupper(mb_substr(trim((string) ($user['nama'] ?? $user['email'] ?? 'U')), 0, 1));
-$exim_label = $exim_side === 'impor' ? 'Index Impor' : 'Index Eksim';
+$exim_label = $exim_side === 'impor' ? 'Indeks Impor' : 'Indeks Ekspor';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -53,10 +54,8 @@ $exim_label = $exim_side === 'impor' ? 'Index Impor' : 'Index Eksim';
 <header class="topnav" id="topnav">
   <div class="topnav-inner">
     <a class="nav-brand" href="/">
-      <span class="brand-badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 13c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 18c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/></svg>
-      </span>
-      <span>
+      <img class="brand-logo" src="/assets/logo-kkp.png?v=<?= $logo_ver; ?>" alt="Logo Kementerian Kelautan dan Perikanan" width="46" height="46">
+      <span class="brand-text">
         <span class="brand-title"><?= KKP\View::e($appName); ?></span>
         <span class="brand-sub">Market Intelligence</span>
       </span>
@@ -96,7 +95,8 @@ $exim_label = $exim_side === 'impor' ? 'Index Impor' : 'Index Eksim';
 
     <div class="nav-actions">
       <div class="nav-search">
-        <input id="komSearch" type="search" placeholder="Cari komoditas… (mis. Udang)" autocomplete="off" aria-label="Cari komoditas">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="komSearch" type="search" placeholder="Cari komoditas…" autocomplete="off" aria-label="Cari komoditas">
         <div class="search-menu" id="komMenu">
           <?php if ($list_err !== null): ?>
             <div class="empty">Komoditas tak termuat.</div>
@@ -111,7 +111,10 @@ $exim_label = $exim_side === 'impor' ? 'Index Impor' : 'Index Eksim';
           <span class="nav-user-name"><?= KKP\View::e($user['nama'] ?? $user['email'] ?? ''); ?></span>
           <span class="nav-user-role"><?= KKP\View::e($user['role'] ?? ''); ?></span>
         </span>
-        <a class="btn nav-logout" href="/logout">Logout</a>
+        <a class="btn nav-logout" href="/logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+          Keluar
+        </a>
       </div>
       <button class="nav-toggle" id="navToggle" type="button" aria-label="Buka menu" aria-expanded="false">&#9776;</button>
     </div>
@@ -141,10 +144,8 @@ $exim_label = $exim_side === 'impor' ? 'Index Impor' : 'Index Eksim';
 <header class="topnav">
   <div class="topnav-inner">
     <a class="nav-brand" href="/login">
-      <span class="brand-badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 13c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 18c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/></svg>
-      </span>
-      <span>
+      <img class="brand-logo" src="/assets/logo-kkp.png?v=<?= $logo_ver; ?>" alt="Logo Kementerian Kelautan dan Perikanan" width="46" height="46">
+      <span class="brand-text">
         <span class="brand-title"><?= KKP\View::e($appName); ?></span>
         <span class="brand-sub">Market Intelligence</span>
       </span>

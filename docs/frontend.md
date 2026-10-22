@@ -6,7 +6,7 @@
 frontend/
   public/
     index.php            router (login/logout/dashboard/komoditas/negara/perbandingan/data)
-    assets/app.css
+    assets/app.css, assets/waves.js, assets/logo-kkp.png (logo resmi KKP)
   src/
     Config.php           config dari frontend/.env.local (API_BASE_URL default :8000)
     ApiClient.php        HTTP client ke backend Flask API (curl, token Bearer)
@@ -104,11 +104,12 @@ Catatan: token sesi disimpan cookie; setiap permintaan ditambahkan
 
 ## Layout (PHASE 5.2 — top nav gaya portal)
 
-- Tidak ada sidebar. `layout/header.php`: top nav fixed (brand, menu
-  Beranda/Analisis/Banding Negara/Perbandingan/Laporan dengan dropdown hover),
+- Tidak ada sidebar. `layout/header.php`: top nav fixed dengan logo resmi KKP
+  (emblem Kementerian Kelautan dan Perikanan), brand, menu
+  Beranda/Analisis/Banding Negara/Perbandingan/Laporan dengan dropdown hover,
   pencarian komoditas dengan dropdown hasil, chip user + logout, tombol
   hamburger untuk mobile.
-- Ticker di bawah nav menampilkan 4 komoditas teratas (harga USD/kg + share)
+- Ticker di bawah nav menampilkan 3 komoditas teratas (harga USD/kg + share)
   dari `/api/explore/komoditas`; data diambil paralel bersama daftar komoditas
   lewat `ApiClient::getMany()` (curl_multi).
 - `layout/footer.php`: footer sumber data + copyright, JS nav/dropdown/search,

@@ -1,8 +1,9 @@
 </main>
+<?php $footer_logo = @filemtime(__DIR__ . '/../../public/assets/logo-kkp.png') ?: time(); ?>
 <footer class="footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M5 7h14l-2.5 4H7.5L5 7z"/><path d="M12 21a5 5 0 0 1 5-5"/><path d="M12 21a5 5 0 0 0-5-5"/></svg>
+      <img class="footer-logo" src="/assets/logo-kkp.png?v=<?= $footer_logo; ?>" alt="Logo Kementerian Kelautan dan Perikanan" width="30" height="30">
       <span><?= KKP\View::e($appName ?? 'KKP EXIM Platform'); ?></span>
     </div>
     <div class="footer-src">
