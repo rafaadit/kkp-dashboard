@@ -10,7 +10,7 @@
       <span>Sumber Data Terverifikasi:</span>
       <strong>KKP RI</strong><span>&middot;</span>
       <strong>Badan Pusat Statistik</strong><span>&middot;</span>
-      <strong>UN Comtrade</strong>
+      <strong>ITC Trade Map</strong>
     </div>
     <div class="footer-copy">&copy; <?= date('Y'); ?> KKP EXIM Platform. Hak Cipta Dilindungi.</div>
   </div>
@@ -60,6 +60,41 @@
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') { menu.classList.remove('open'); input.blur(); }
         });
+    }
+    var hero = document.querySelector('.hero-slider');
+    if (hero) {
+        var slides = Array.prototype.slice.call(hero.querySelectorAll('.hero-slide'));
+        var dots = Array.prototype.slice.call(hero.querySelectorAll('.hero-slide-dot'));
+        var interval = Number(hero.dataset.slideInterval || 3000);
+        var activeSlide = 0;
+        var timer = null;
+        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function showSlide(index) {
+            activeSlide = (index + slides.length) % slides.length;
+            slides.forEach(function (slide, i) { slide.classList.toggle('is-active', i === activeSlide); });
+            dots.forEach(function (dot, i) {
+                dot.classList.toggle('is-active', i === activeSlide);
+                if (i === activeSlide) dot.setAttribute('aria-current', 'true');
+                else dot.removeAttribute('aria-current');
+            });
+        }
+
+        function startSlider() {
+            if (timer || reduceMotion || slides.length < 2) return;
+            timer = window.setInterval(function () { showSlide(activeSlide + 1); }, interval);
+        }
+
+        function stopSlider() { if (timer) window.clearInterval(timer); timer = null; }
+
+        dots.forEach(function (dot, i) {
+            dot.addEventListener('click', function () { showSlide(i); stopSlider(); startSlider(); });
+        });
+        hero.addEventListener('mouseenter', stopSlider);
+        hero.addEventListener('mouseleave', startSlider);
+        hero.addEventListener('focusin', stopSlider);
+        hero.addEventListener('focusout', startSlider);
+        startSlider();
     }
 })();
 </script>

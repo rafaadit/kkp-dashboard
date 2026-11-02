@@ -27,7 +27,7 @@ frontend/
 
 # 2. Frontend (PHP :8080)
 php -S 127.0.0.1:8080 -t frontend/public frontend/public/index.php
-```
+
 
 Buka http://127.0.0.1:8080 → login dengan akun admin.
 

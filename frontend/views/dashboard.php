@@ -101,7 +101,15 @@ $kom_list = $komoditas_list ?? [];
   <a href="?exim=<?= View::e($exim); ?>">hapus filter</a></p>
 <?php endif; ?>
 
-<section class="hero">
+<section class="hero hero-slider" data-slide-interval="3000" aria-label="Pusat Intelijen Pasar Perikanan Indonesia">
+  <div class="hero-slides" aria-hidden="true">
+    <div class="hero-slide is-active hero-slide-fishing"></div>
+    <div class="hero-slide hero-slide-fleet"></div>
+  </div>
+  <div class="hero-slide-dots" aria-label="Pilihan latar hero">
+    <button class="hero-slide-dot is-active" type="button" aria-label="Tampilkan latar 1" aria-current="true"></button>
+    <button class="hero-slide-dot" type="button" aria-label="Tampilkan latar 2"></button>
+  </div>
   <div class="hero-content">
     <span class="hero-badge"><span class="dot"></span> WPPNRI &middot; Intelijen Perdagangan Bahari</span>
     <h1>Pusat Intelijen Pasar Perikanan Indonesia</h1>
