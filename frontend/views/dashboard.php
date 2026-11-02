@@ -60,6 +60,15 @@ if ($periode !== '') {
         'ytd_other' => '/api/explore/overview?' . http_build_query(['exim' => $other_exim, 'mulai' => $ytd_start, 'akhir' => $ytd_end] + $common),
     ];
 }
+for ($year = 2022; $year <= ($ref_y ?? (int) date('Y')); $year++) {
+    $year_start = sprintf('%04d-01', $year);
+    $year_end = sprintf('%04d-%02d', $year, $ref_m ?? 12);
+    $paths["year_{$year}"] = '/api/explore/overview?' . http_build_query([
+        'exim' => $exim,
+        'mulai' => $year_start,
+        'akhir' => $year_end,
+    ] + $common);
+}
 $res = $api->getMany($paths);
 $pick = function (string $key) use ($res): ?array {
     return (($res[$key][0] ?? 0) === 200 && is_array($res[$key][1] ?? null)) ? $res[$key][1] : null;
@@ -73,6 +82,17 @@ $negara = $pick('negara');
 $provinsi = $pick('provinsi');
 $ytd_cur = $pick('ytd');
 $ytd_other = $pick('ytd_other');
+$year_rows = [];
+for ($year = 2022; $year <= ($ref_y ?? (int) date('Y')); $year++) {
+    $year_data = $pick("year_{$year}");
+    if ($year_data) {
+        $year_rows[] = [
+            'tahun' => $year,
+            'volume_kg' => (float) ($year_data['totals']['volume_kg'] ?? 0),
+            'nilai_usd' => (float) ($year_data['totals']['nilai_usd'] ?? 0),
+        ];
+    }
+}
 
 $map_by_name = function (?array $d): array {
     $m = [];
@@ -215,28 +235,66 @@ $kom_list = $komoditas_list ?? [];
     <div class="home-card">
       <div class="home-card-head">
         <div>
-          <div class="eyebrow">Tren Bulanan</div>
-          <h3>Nilai <?= View::e($exim_label); ?> per Periode</h3>
+          <div class="eyebrow">Tren Tahunan</div>
+          <h3>Volume dan Nilai <?= View::e($exim_label); ?> per Tahun</h3>
         </div>
         <span class="live-pill"><span class="dot"></span> BPS/KKP</span>
       </div>
       <?php
-        $bulan_rows = array_slice($cur['perbulan'], -12);
-        $max_val = 0.0;
-        foreach ($bulan_rows as $p) { $max_val = max($max_val, (float) $p['nilai_usd']); }
+        $last_month = $ref_m ?? 12;
+        $bulan_nama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        $max_volume = 0.0;
+        $max_nilai = 0.0;
+        foreach ($year_rows as $year_row) {
+            $max_volume = max($max_volume, (float) $year_row['volume_kg']);
+            $max_nilai = max($max_nilai, (float) $year_row['nilai_usd']);
+        }
+        $first = $year_rows[0] ?? null;
+        $last = $year_rows[count($year_rows) - 1] ?? null;
+        $period_count = count($year_rows);
+        $cagr_volume = $cagr_nilai = null;
+        if ($first && $last && $period_count > 1) {
+            if ((float) $first['volume_kg'] > 0) $cagr_volume = (pow((float) $last['volume_kg'] / (float) $first['volume_kg'], 1 / ($period_count - 1)) - 1) * 100;
+            if ((float) $first['nilai_usd'] > 0) $cagr_nilai = (pow((float) $last['nilai_usd'] / (float) $first['nilai_usd'], 1 / ($period_count - 1)) - 1) * 100;
+        }
       ?>
-      <div class="chart">
-        <?php foreach ($bulan_rows as $p): $h = $max_val > 0 ? max(3, (float) $p['nilai_usd'] / $max_val * 100) : 3; ?>
-        <div class="col" title="<?= View::e($p['periode']); ?> — US$ <?= View::num($p['nilai_usd'], 2); ?>">
-          <div class="bar" style="height:<?= View::num($h, 1); ?>%"></div>
-          <span class="lbl"><?= View::e(substr((string) $p['periode'], 2)); ?></span>
-        </div>
-        <?php endforeach; ?>
+      <?php if ($first && $last && $period_count >= 2): ?>
+      <div class="annual-summary">
+        <div class="annual-kpi"><span class="annual-kpi-icon <?= ($cagr_volume ?? 0) >= 0 ? 'up' : 'down'; ?>"><?= ($cagr_volume ?? 0) >= 0 ? '▲' : '▼'; ?></span><strong><?= $cagr_volume !== null ? View::num($cagr_volume, 1) . '%' : '—'; ?></strong><small>per tahun</small><span>Pertumbuhan rata-rata volume <?= View::e($exim_label); ?> (<?= $first['tahun']; ?>–<?= $last['tahun']; ?>)</span></div>
+        <div class="annual-kpi"><span class="annual-kpi-icon <?= ($cagr_nilai ?? 0) >= 0 ? 'up' : 'down'; ?>"><?= ($cagr_nilai ?? 0) >= 0 ? '▲' : '▼'; ?></span><strong><?= $cagr_nilai !== null ? View::num($cagr_nilai, 1) . '%' : '—'; ?></strong><small>per tahun</small><span>Pertumbuhan rata-rata nilai <?= View::e($exim_label); ?> (<?= $first['tahun']; ?>–<?= $last['tahun']; ?>)</span></div>
       </div>
-      <div class="chart-foot">
-        <span><?= count($bulan_rows); ?> periode terakhir &middot; puncak US$ <?= View::compact($max_val); ?></span>
-        <a class="section-link" href="/perbandingan">Bandingkan periode &rarr;</a>
+      <?php endif; ?>
+      <?php if (!empty($year_rows)): ?>
+      <div class="annual-chart">
+        <div class="annual-chart-title"><?= View::e(strtoupper($exim_label)); ?> · Jan–<?= View::e($bulan_nama[$last_month]); ?> · <?= $first['tahun']; ?>–<?= $last['tahun']; ?></div>
+        <?php
+          $chart_w = 720; $chart_h = 230; $left = 28; $right = 28; $top = 52; $bottom = 38;
+          $plot_w = $chart_w - $left - $right; $plot_h = $chart_h - $top - $bottom;
+          $count_rows = count($year_rows); $points = [];
+        ?>
+        <svg viewBox="0 0 <?= $chart_w ?> <?= $chart_h ?>" role="img" aria-label="Volume dan nilai eksim tahunan">
+          <?php for ($i = 0; $i < $count_rows; $i++):
+            $row = $year_rows[$i];
+            $x = $left + $plot_w * ($count_rows === 1 ? 0.5 : $i / ($count_rows - 1));
+            $bar_h = $max_volume > 0 ? $plot_h * ((float) $row['volume_kg'] / $max_volume) : 0;
+            $bar_y = $top + $plot_h - $bar_h;
+            $line_y = $top + $plot_h - ($max_nilai > 0 ? $plot_h * ((float) $row['nilai_usd'] / $max_nilai) : 0);
+            $points[] = [$x, $line_y];
+          ?>
+          <line x1="<?= View::num($x, 1) ?>" y1="<?= $top ?>" x2="<?= View::num($x, 1) ?>" y2="<?= $top + $plot_h ?>" stroke="#dfe7ef"/>
+          <rect x="<?= View::num($x - 34, 1) ?>" y="<?= View::num($bar_y, 1) ?>" width="68" height="<?= View::num($bar_h, 1) ?>" rx="5" fill="#2f64a5"><title><?= $row['tahun']; ?>: <?= View::num((float) $row['volume_kg'] / 1e6, 2); ?> juta ton</title></rect>
+          <rect x="<?= View::num($x - 30, 1) ?>" y="<?= View::num(max($top, $bar_y - 28), 1) ?>" width="60" height="24" rx="7" fill="#6f81a8"/><text x="<?= View::num($x, 1) ?>" y="<?= View::num(max($top + 16, $bar_y - 11), 1) ?>" text-anchor="middle" font-size="12" font-weight="800" fill="#fff"><?= View::num((float) $row['volume_kg'] / 1e6, 2); ?></text>
+          <text x="<?= View::num($x, 1) ?>" y="<?= $top + $plot_h + 24 ?>" text-anchor="middle" font-size="14" font-weight="800" fill="#1f2937"><?= $row['tahun']; ?></text>
+          <?php endfor; ?>
+          <?php if (count($points) > 1): ?><polyline points="<?php foreach ($points as $point): ?><?= View::num($point[0], 1) ?>,<?= View::num($point[1], 1) ?> <?php endforeach; ?>" fill="none" stroke="#009d8d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><?php endif; ?>
+          <?php foreach ($points as $i => $point): $row = $year_rows[$i]; ?>
+          <circle cx="<?= View::num($point[0], 1) ?>" cy="<?= View::num($point[1], 1) ?>" r="8" fill="#009d8d" stroke="#fff" stroke-width="3"/><rect x="<?= View::num($point[0] - 30, 1) ?>" y="<?= View::num(max(7, $point[1] - 42), 1) ?>" width="60" height="27" rx="7" fill="#76e38b"/><text x="<?= View::num($point[0], 1) ?>" y="<?= View::num(max(26, $point[1] - 23), 1) ?>" text-anchor="middle" font-size="13" font-weight="800" fill="#172018"><?= View::num((float) $row['nilai_usd'] / 1e6, 2); ?></text>
+          <?php endforeach; ?>
+        </svg>
+        <div class="annual-legend"><span><i class="legend-bar"></i>Volume (Juta Ton)</span><span><i class="legend-line"></i>Nilai (US$ Juta)</span></div>
       </div>
+      <?php endif; ?>
+      <div class="chart-foot"><span>Periode pembanding: Jan–<?= View::e($bulan_nama[$last_month]); ?> setiap tahun</span><a class="section-link" href="/perbandingan">Bandingkan periode &rarr;</a></div>
     </div>
 
     <div class="home-col">
