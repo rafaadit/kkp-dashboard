@@ -617,6 +617,10 @@ body.has-waves { background-color: var(--bg); }
     background-image: url('/assets/back-kapal-2.jpeg');
     background-position: center 58%;
 }
+.hero-slide-catch {
+    background-image: url('/assets/hero-fishing-boats.jpg');
+    background-position: center 45%;
+}
 .hero-slider::before {
     z-index: -1;
     background: linear-gradient(90deg, rgba(2,15,31,.94) 0%, rgba(2,15,31,.76) 44%, rgba(2,15,31,.28) 72%, rgba(2,15,31,.15) 100%), linear-gradient(0deg, rgba(2,15,31,.72) 0%, transparent 48%);
@@ -642,7 +646,16 @@ body.has-waves { background-color: var(--bg); }
 }
 .hero-slide-dot.is-active { width: 46px; background: #38bdf8; }
 @media (max-width: 720px) {
-    .hero-slide-dots { right: 18px; bottom: 76px; }
+    .hero-slide-dots {
+        right: 9px;
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+        flex-direction: column;
+        gap: 6px;
+    }
+    .hero-slide-dot { width: 3px; height: 18px; }
+    .hero-slide-dot.is-active { width: 3px; height: 30px; }
     .hero-slider::before { background: linear-gradient(90deg, rgba(2,15,31,.92), rgba(2,15,31,.58)), linear-gradient(0deg, rgba(2,15,31,.82), transparent 58%); }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -58,11 +58,14 @@ Header: `Authorization: Bearer <token>`.
 
 ## Halaman
 
-- `/` Beranda: hero + filter (exim, periode, komoditas), 3 kartu komoditas
-  unggulan (delta MoM), grid analitik (tren nilai 12 bulan, top negara, kelompok
-  koding), grid provinsi asal, serta tabel ringkas ekspor/impor (MoM/YoY, surplus,
-  baris "Lainnya"). Klik kartu/baris mengarah ke halaman terkait. Mendukung
-  deep-link `/dashboard?komoditas=<nama>`.
+- `/` Beranda: hero dengan latar 3 foto kapal/perikanan yang berganti otomatis
+  tiap 3 detik (crossfade, berhenti saat hover, hormati
+  `prefers-reduced-motion`; tombol titik untuk pilih latar) + filter (exim,
+  periode, komoditas), 3 kartu komoditas
+  unggulan (delta MoM), grid analitik (tren tahunan volume & nilai, top negara,
+  kelompok koding), grid provinsi asal, serta tabel ringkas ekspor/impor (MoM/YoY,
+  surplus, baris "Lainnya"). Klik kartu/baris mengarah ke halaman terkait.
+  Mendukung deep-link `/dashboard?komoditas=<nama>`.
 - `/komoditas` Top komoditas_5_2026 (volume, nilai, harga/kg, share %).
 - `/negara` Top negara tujuan/asal + kelompok negara.
 - `/provinsi` Top provinsi asal barang (ekspor) / bongkar (impor); bisa

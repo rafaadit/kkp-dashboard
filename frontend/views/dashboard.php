@@ -125,10 +125,12 @@ $kom_list = $komoditas_list ?? [];
   <div class="hero-slides" aria-hidden="true">
     <div class="hero-slide is-active hero-slide-fishing"></div>
     <div class="hero-slide hero-slide-fleet"></div>
+    <div class="hero-slide hero-slide-catch"></div>
   </div>
   <div class="hero-slide-dots" aria-label="Pilihan latar hero">
     <button class="hero-slide-dot is-active" type="button" aria-label="Tampilkan latar 1" aria-current="true"></button>
     <button class="hero-slide-dot" type="button" aria-label="Tampilkan latar 2"></button>
+    <button class="hero-slide-dot" type="button" aria-label="Tampilkan latar 3"></button>
   </div>
   <div class="hero-content">
     <span class="hero-badge"><span class="dot"></span> WPPNRI &middot; Intelijen Perdagangan Bahari</span>
