@@ -24,7 +24,6 @@ import os
 import sys
 import traceback
 
-import openpyxl
 import pymysql
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,34 +51,13 @@ def log(conn, job_id, level, message, data=None):
     conn.commit()
 
 
-def file_periods(path):
-    """Kumpulkan pasangan (tahun, bulan) unik dari workbook BPS."""
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    try:
-        ws = wb.active
-        rows = ws.iter_rows(values_only=True)
-        header = next(rows, None) or ()
-        names = [str(c or "").strip().lower() for c in header]
-        try:
-            i_tahun = names.index("tahun")
-            i_bulan = names.index("bulan")
-        except ValueError:
-            raise RuntimeError("kolom 'tahun'/'bulan' tidak ditemukan di header file")
+def file_periods(path, exim_type):
+    """Kumpulkan pasangan (tahun, bulan) unik dari workbook BPS.
 
-        periods = set()
-        for row in rows:
-            if row is None:
-                continue
-            try:
-                tahun = int(row[i_tahun])
-                bulan = int(row[i_bulan])
-            except (TypeError, ValueError, IndexError):
-                continue
-            if 2000 <= tahun <= 2100 and 1 <= bulan <= 12:
-                periods.add((tahun, bulan))
-        return periods
-    finally:
-        wb.close()
+    Memakai parser yang sama dengan ETL supaya header baris ke-3 (file bulanan
+    BPS) maupun header baris ke-1 (Data Minimum) sama-sama dikenali.
+    """
+    return etl_bps.periods_in_file(path, exim_type)
 
 
 def ensure_periods(conn, periods):
@@ -148,6 +126,43 @@ def set_job(conn, job_id, status, error=None, finished=False, params=None):
     conn.commit()
 
 
+def sync_jisdor_periods(conn, job_id, periods):
+    """Unduh JISDOR BI dan simpan kurs bulanan untuk periode data BPS."""
+    from backend.kurs.jisdor import JisdorDownloader
+
+    results = {}
+    for tahun, bulan in sorted(periods):
+        label = f"{tahun:04d}-{bulan:02d}"
+        start = f"{tahun:04d}-{bulan:02d}-01"
+        end = f"{tahun:04d}-{bulan:02d}-{calendar.monthrange(tahun, bulan)[1]:02d}"
+        downloader = JisdorDownloader(conn)
+        try:
+            result = downloader.run(
+                mts="USD", start=start, end=end,
+                source="Bank Indonesia JISDOR", process=True, commit=True,
+            )
+            if result.get("ok"):
+                months = int(result.get("months") or 0)
+                log(conn, job_id,
+                    "info" if months else "warn",
+                    f"Kurs JISDOR periode {label} " +
+                    ("berhasil diperbarui" if months else "tidak memiliki data tersimpan"),
+                    {"periode": label, "days": result.get("days", 0), "months": months})
+            else:
+                log(conn, job_id, "warn",
+                    f"Kurs JISDOR periode {label} gagal diperbarui: {result.get('error')}",
+                    {"periode": label, "error": result.get("error")})
+            results[label] = result
+        except Exception as e:  # noqa: BLE001
+            log(conn, job_id, "warn",
+                f"Kurs JISDOR periode {label} gagal diperbarui: {e}",
+                {"periode": label, "error": str(e)})
+            results[label] = {"ok": False, "error": str(e)}
+        finally:
+            downloader.close()
+    return results
+
+
 def main():
     ap = argparse.ArgumentParser(description="Update data BPS periode baru")
     ap.add_argument("--ekspor", help="path file xlsx BPS ekspor")
@@ -183,12 +198,12 @@ def main():
 
         # 1) Pastikan periode baru tersedia sebelum validasi ETL.
         input_periods = set()
-        for path in (args.ekspor, args.impor):
+        for exim_type, path in (("ekspor", args.ekspor), ("impor", args.impor)):
             if not path:
                 continue
             if not os.path.isfile(path):
                 raise RuntimeError(f"file tidak ditemukan: {path}")
-            periods = file_periods(path)
+            periods = file_periods(path, exim_type)
             input_periods |= periods
             log(conn, job_id, "info",
                 f"{os.path.basename(path)}: {len(periods)} periode terdeteksi",
@@ -201,6 +216,9 @@ def main():
             log(conn, job_id, "info", f"{created} periode baru ditambahkan ke ms_period")
         else:
             log(conn, job_id, "info", "semua periode sudah ada di ms_period")
+
+        jisdor_results = sync_jisdor_periods(conn, job_id, input_periods)
+        params["jisdor"] = jisdor_results
 
         # 2) ETL memakai cursor tuple (etl_bps.py), generation memakai DictCursor.
         master_ids = etl_bps.load_masters(conn.cursor())

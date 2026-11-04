@@ -10,7 +10,7 @@ MySQL 8.0.33 | InnoDB | utf8mb4_unicode_ci | 33 tabel | Seed + Migration based
 
 | Tabel | Deskripsi | Seed |
 |-------|-----------|------|
-| `ms_period` | Bulan-tahun data (2022-01 → 2026-06) | 54 baris |
+| `ms_period` | Bulan-tahun data (2022-01 → 2026-07) | 55 baris (2026-07 dari upload BPS) |
 | `ms_negara` | 208 negara, 17 kelompok | master_exim_reference.xlsx |
 | `ms_provinsi` | 38 provinsi + pulau | master_exim_reference.xlsx |
 | `ms_pelabuhan` | 199 pelabuhan (DARAT/LAUT/UDARA) → ms_provinsi | master_exim_reference.xlsx |
@@ -109,7 +109,7 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 | 33 tabel (bukan 17 seperti eksim_system) | Lebih granular: bridge `ms_komoditas_hscode`, staging `bps_*_raw`, audit logs, notifications |
 | `raw_exim` = 46 kolom | Verified 1:1 dari file Raw_Eksim_Expor.xlsx + exim_type + BPS FK + status |
 | `ms_kurs` per periode (bukan per hari) | Kurs JISDOR dikonfirmasi konstan per periode dari eksim_system |
-| Grain `bps_export` = 8 kolom | Verified 0 duplikat 189.001 baris ekspor |
+| Grain `bps_export` = 8 kolom | Verified 0 duplikat 193.103 baris ekspor |
 | CHECK constraint `single_source` dihapus | MySQL 8.0.33 menolak CHECK yang involves FK+SET NULL; ditegakkan di aplikasi |
 | `ms_komoditas` multi-sumber | Konsisten untuk analytics & TradeMap yang butuh taxonomy granular |
 | `ms_reference.sumber` = 'NEEDS VALIDATION' | Formula belum dikonfirmasi (sementara) |
@@ -122,7 +122,7 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 
 | File | Isi | Sumber |
 |------|-----|--------|
-| `001_ms_period.sql` | 54 bulan 2022-01..2026-06 | Generated |
+| `001_ms_period.sql` | 54 bulan 2022-01..2026-06 (seed); 2026-07 dibuat saat update BPS | Generated |
 | `002_ms_negara.sql` | 208 negara | master_exim_reference.xlsx |
 | `003_ms_provinsi.sql` | 38 provinsi | master_exim_reference.xlsx |
 | `004_ms_pelabuhan.sql` | 199 pelabuhan + FK → ms_provinsi | master_exim_reference.xlsx |
@@ -143,7 +143,7 @@ ms_period ← ms_kurs (1:1), ← analytics_metric, ← raw_exim
 | Formula Setara Segar | Verified 100% | `VOL / Rendemen` (bukan `*`) |
 | Kurs JISDOR | Verified: JISDOR BI per bulan | `ms_kurs` via `import_jisdor.py`; 2026-06=358482 hanya placeholder verifikasi |
 | `raw_exim.status` enum | Diperluas dari 'ready' | Sebelumnya hanya 'needs_validation'/'rejected' |
-| `bps_export_raw` / `bps_import_raw` | Ready, ETL PHASE 2 | 189.001 + 53.668 baris, valid 100% |
+| `bps_export_raw` / `bps_import_raw` | Ready, ETL PHASE 2 | 193.103 + 55.332 baris, valid 100% (termasuk 2026-07) |
 | `ms_komoditas` bridge coverage | 3725 rows | Multi-sumber: 6 versi kolom |
 | `ms_reference` sumber | NEEDS VALIDATION | Beberapa formula belum dikonfirmasi user |
 | `app_users` seed | Tidak ada seed default | User registrasi via PHASE 3+ |

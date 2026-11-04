@@ -3,12 +3,14 @@ $api = $session->api();
 $summary = null;
 $uploads = [];
 $jobs = [];
+$periods = [];
 $api_error = null;
 try {
     $res = $api->getMany([
         'summary' => '/api/data/bps/summary',
         'uploads' => '/api/data/bps/uploads?limit=10',
         'jobs' => '/api/data/bps/jobs?limit=10',
+        'periods' => '/api/data/bps/periods',
     ]);
     foreach ($res as $key => $pair) {
         [$st, $body] = $pair;
@@ -19,12 +21,16 @@ try {
         if ($key === 'summary') { $summary = $body; }
         if ($key === 'uploads') { $uploads = $body['uploads'] ?? []; }
         if ($key === 'jobs') { $jobs = $body['jobs'] ?? []; }
+        if ($key === 'periods') { $periods = $body['periods'] ?? []; }
     }
 } catch (\Throwable $e) {
     $api_error = $e->getMessage();
 }
 
-$ok = isset($_GET['ok']) ? 'Permintaan update BPS berhasil dikirim.' : null;
+$ok = isset($_GET['ok']) ? (string) $_GET['ok'] : null;
+if ($ok === '1' && isset($_GET['job'])) {
+    $ok = 'Permintaan update BPS berhasil dikirim.';
+}
 $err = isset($_GET['err']) ? (string) $_GET['err'] : null;
 
 $status_class = static function (string $s): string {
@@ -149,6 +155,33 @@ $counts = $summary['counts'] ?? [];
     <div class="upload-actions">
       <button class="btn btn-primary" type="submit" <?= $active ? 'disabled' : ''; ?>>Mulai Update BPS</button>
       <?php if ($active): ?><span class="muted">Ada job yang masih berjalan. Tunggu sampai selesai.</span><?php endif; ?>
+    </div>
+  </form>
+</div>
+
+<div class="card bps-delete-card">
+  <h2>Hapus Data BPS per Periode</h2>
+  <p class="muted">Pilih periode dan jenis data yang ingin dihapus. Perubahan akan menghapus RAW EXIM serta tabel fakt dan staging terkait.</p>
+  <form method="post" action="/data-bps/delete" class="grid-3" onsubmit="return confirm('Hapus data pada periode yang dipilih? Tindakan ini tidak dapat dibatalkan.');">
+    <label class="file-field">
+      <span>Periode</span>
+      <select name="period_id" required>
+        <option value="">Pilih periode</option>
+        <?php foreach ($periods as $period): ?>
+        <option value="<?= (int) $period['id']; ?>"><?= \KKP\View::e($period['label']); ?> — Ekspor <?= \KKP\View::num($period['ekspor_rows']); ?>, Impor <?= \KKP\View::num($period['impor_rows']); ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <label class="file-field">
+      <span>Jenis Data</span>
+      <select name="exim" required>
+        <option value="both">Ekspor dan Impor</option>
+        <option value="ekspor">Ekspor saja</option>
+        <option value="impor">Impor saja</option>
+      </select>
+    </label>
+    <div class="upload-actions" style="align-self:end">
+      <button class="btn btn-danger" type="submit">Hapus Periode</button>
     </div>
   </form>
 </div>

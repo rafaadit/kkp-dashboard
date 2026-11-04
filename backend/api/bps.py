@@ -455,3 +455,106 @@ def cancel_job(jid):
     finally:
         conn.close()
     return jsonify({"status": "CANCELLED", "id": jid})
+
+
+@bps_bp.get("/periods")
+@require_perm("data.view", "exim.view", "data.update_bps_export", "data.update_bps_import")
+def periods():
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT p.id, p.tahun, p.bulan, p.label,
+                      SUM(CASE WHEN r.exim_type='ekspor' THEN 1 ELSE 0 END) AS ekspor_rows,
+                      SUM(CASE WHEN r.exim_type='impor' THEN 1 ELSE 0 END) AS impor_rows
+               FROM ms_period p
+               LEFT JOIN raw_exim r ON r.id_ms_period=p.id
+               GROUP BY p.id, p.tahun, p.bulan, p.label
+               HAVING ekspor_rows > 0 OR impor_rows > 0
+               ORDER BY p.tahun DESC, p.bulan DESC"""
+        )
+        return jsonify({"periods": [{
+            "id": int(r["id"]), "tahun": int(r["tahun"]), "bulan": int(r["bulan"]),
+            "label": r["label"] or f"{r['tahun']:04d}-{r['bulan']:02d}",
+            "ekspor_rows": int(r["ekspor_rows"] or 0),
+            "impor_rows": int(r["impor_rows"] or 0),
+        } for r in cur.fetchall()]})
+    finally:
+        conn.close()
+
+
+@bps_bp.post("/delete-period")
+@require_perm("data.update_bps_export", "data.update_bps_import")
+def delete_period():
+    sess = session_context()
+    body = request.get_json(silent=True) or {}
+    try:
+        period_id = int(body.get("period_id") or 0)
+    except (TypeError, ValueError):
+        period_id = 0
+    exim = body.get("exim", "both")
+    if period_id <= 0:
+        raise ApiError("periode tidak valid")
+    if exim not in ("ekspor", "impor", "both"):
+        raise ApiError("jenis data tidak valid")
+    if exim in ("ekspor", "both") and not _can(sess, "data.update_bps_export"):
+        raise ApiError("tidak punya izin menghapus data BPS ekspor", 403)
+    if exim in ("impor", "both") and not _can(sess, "data.update_bps_import"):
+        raise ApiError("tidak punya izin menghapus data BPS impor", 403)
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, tahun, bulan, label FROM ms_period WHERE id=%s", (period_id,))
+        period = cur.fetchone()
+        if not period:
+            raise ApiError("periode tidak ditemukan", 404)
+
+        tahun, bulan = int(period["tahun"]), int(period["bulan"])
+        before = {}
+        types = ("ekspor", "impor") if exim == "both" else (exim,)
+        for typ in types:
+            fact_table = "bps_export" if typ == "ekspor" else "bps_import"
+            raw_table = "raw_exim"
+            cur.execute(f"SELECT COUNT(*) AS n FROM {fact_table} WHERE id_ms_period=%s", (period_id,))
+            fact_count = int(cur.fetchone()["n"] or 0)
+            cur.execute("SELECT COUNT(*) AS n FROM raw_exim WHERE id_ms_period=%s AND exim_type=%s", (period_id, typ))
+            raw_count = int(cur.fetchone()["n"] or 0)
+            before[typ] = {"fact": fact_count, "raw_exim": raw_count}
+
+            cur.execute("DELETE FROM raw_exim WHERE id_ms_period=%s AND exim_type=%s", (period_id, typ))
+            cur.execute(f"DELETE FROM {fact_table} WHERE id_ms_period=%s", (period_id,))
+
+            staging_table = "bps_export_raw" if typ == "ekspor" else "bps_import_raw"
+            cur.execute(
+                f"SELECT DISTINCT id_bps_upload FROM {staging_table} WHERE tahun=%s AND bulan=%s",
+                (str(tahun), f"{bulan:02d}"),
+            )
+            upload_ids = [int(r["id_bps_upload"]) for r in cur.fetchall()]
+            if upload_ids:
+                placeholders = ",".join(["%s"] * len(upload_ids))
+                cur.execute(
+                    f"DELETE FROM {staging_table} WHERE tahun=%s AND bulan=%s AND id_bps_upload IN ({placeholders})",
+                    [str(tahun), f"{bulan:02d}"] + upload_ids,
+                )
+                cur.execute(
+                    f"UPDATE bps_upload SET status='failed', row_count=0, "
+                    f"error_summary=%s WHERE exim_type=%s AND id IN ({placeholders})",
+                    [f"Data periode {period['label']} dihapus oleh {sess['email']}", typ] + upload_ids,
+                )
+
+        cur.execute(
+            "INSERT INTO audit_logs (app_user_id, action, entity, entity_id, before_data, after_data, ip_address, user_agent, correlation_id) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (sess["user_id"], "delete", "bps_period", str(period_id), json.dumps(before),
+             json.dumps({"exim": exim, "periode": period["label"]}),
+             request.headers.get("X-Forwarded-For", request.remote_addr or ""),
+             request.headers.get("User-Agent", "")[:255], uuid.uuid4().hex),
+        )
+        conn.commit()
+        return jsonify({"status": "deleted", "period_id": period_id, "periode": period["label"], "exim": exim, "before": before})
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

@@ -234,6 +234,25 @@ try {
                 echo json_encode(['error' => $e->getMessage()]);
             }
             exit;
+        case '/data-bps/delete':
+            guard($session, ['data.update_bps_export', 'data.update_bps_import'], $vars);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                redirect('/data-bps');
+            }
+            try {
+                [$st, $body] = $session->api()->post('/api/data/bps/delete-period', [
+                    'period_id' => (int) ($_POST['period_id'] ?? 0),
+                    'exim' => (string) ($_POST['exim'] ?? 'both'),
+                ]);
+                if ($st !== 200) {
+                    $msg = is_array($body) ? ($body['error'] ?? 'gagal menghapus data BPS') : 'gagal menghapus data BPS';
+                    redirect('/data-bps?err=' . urlencode((string) $msg));
+                }
+                $periode = is_array($body) ? (string) ($body['periode'] ?? '') : '';
+                redirect('/data-bps?ok=' . urlencode('Data BPS periode ' . $periode . ' berhasil dihapus.'));
+            } catch (Throwable $e) {
+                redirect('/data-bps?err=' . urlencode($e->getMessage()));
+            }
         case '/akun':
             guard($session, ['admin.users'], $vars);
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {

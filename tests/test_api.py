@@ -6,6 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.api.app import create_app
+from backend.db import get_connection
 
 PASS = 0
 FAIL = 0
@@ -131,7 +132,8 @@ def main():
     r = c.get("/api/explore/potensi?exim=ekspor", headers=H)
     check("potensi 200", r.status_code == 200)
     d = r.get_json()
-    check("potensi ref_periode", d["ref_periode"]["mulai"] == "2026-01", str(d["ref_periode"]))
+    check("potensi ref_periode", d["ref_periode"] == {"mulai": "2026-02", "akhir": "2026-07"},
+          str(d["ref_periode"]))
     check("potensi top_market > 0", len(d["top_market"]) > 0)
     check("potensi momentum naik semua > 0",
           all(m["pertumbuhan_persen"] > 0 for m in d["momentum"]))
@@ -164,7 +166,7 @@ def main():
     check("pertumbuhan dihitung", d["delta"]["pertumbuhan_nilai_persen"] is not None)
 
     print("== api/data/raw_exim ==")
-    r = c.get("/api/data/raw_exim?exim=ekspor&mulai=2026-06&page=1&limit=2", headers=H)
+    r = c.get("/api/data/raw_exim?exim=ekspor&mulai=2026-06&akhir=2026-06&page=1&limit=2", headers=H)
     check("browse 200", r.status_code == 200)
     d = r.get_json()
     check("browse total==4114", d["total"] == 4114, str(d["total"]))
@@ -180,7 +182,7 @@ def main():
         {"komoditas_1_2017", "komoditas_2_2017", "komoditas_4_2024", "komoditas_5_2026",
          "bentuk_1", "bentuk_2", "bentuk_3_2026", "bentuk_4_2026", "bentuk_5_2026",
          "jenis_2_2026", "uraian_2", "uraian_id_en_2_2026"}))
-    r = c.get("/api/data/raw_exim?exim=impor&mulai=2026-06&limit=1", headers=H)
+    r = c.get("/api/data/raw_exim?exim=impor&mulai=2026-06&akhir=2026-06&limit=1", headers=H)
     check("browse impor total==1624", r.get_json()["total"] == 1624)
     r = c.get("/api/data/raw_exim?exim=ekspor&periode=2026-01&limit=1", headers=H)
     check("browse periode tunggal==4080", r.get_json()["total"] == 4080, str(r.get_json()["total"]))
@@ -189,7 +191,7 @@ def main():
     print("== api/data/raw_exim.xlsx (export Excel) ==")
     import io
     import openpyxl
-    r = c.get("/api/data/raw_exim.xlsx?exim=impor&mulai=2026-06", headers=H)
+    r = c.get("/api/data/raw_exim.xlsx?exim=impor&mulai=2026-06&akhir=2026-06", headers=H)
     check("export 200", r.status_code == 200, str(r.status_code))
     check("export content-type xlsx",
           "spreadsheetml" in (r.headers.get("Content-Type") or ""),
@@ -239,10 +241,18 @@ def main():
     check("404 json", c.get("/api/nope").status_code == 404)
 
     print("== agregat vs raw_exim langsung (sanity) ==")
-    # Total baris ekspor seluruh periode harus 189001 (sesuai dokumentasi PHASE 3)
+    # Total baris ekspor seluruh periode dibandingkan langsung dengan DB, supaya
+    # test tetap valid saat ada periode BPS baru.
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) AS n FROM raw_exim WHERE exim_type='ekspor'")
+        expected = cur.fetchone()["n"]
+    finally:
+        conn.close()
     r = c.get("/api/explore/overview?exim=ekspor", headers=H)
     baris = r.get_json()["totals"]["baris"]
-    check("ekspor all baris==189001", baris == 189001, str(baris))
+    check("ekspor all baris==raw_exim", baris == expected, f"{baris} vs {expected}")
 
     print()
     print(f"RESULT: {PASS} passed, {FAIL} failed")

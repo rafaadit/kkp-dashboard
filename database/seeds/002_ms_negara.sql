@@ -160,6 +160,7 @@ INSERT IGNORE INTO ms_negara (kode_negara, nama_negara, kelompok_negara) VALUES
 ('PH', 'PHILIPPINES', 'Asean'),
 ('PK', 'PAKISTAN', 'Lainnya'),
 ('PL', 'POLAND', 'Uni Eropa'),
+('PW', 'PALAU', 'Lainnya'),
 ('PR', 'PUERTO RICO', 'Lainnya'),
 ('PS', 'PALESTINA', 'Timur Tengah'),
 ('PT', 'PORTUGAL', 'Uni Eropa'),
@@ -212,4 +213,5 @@ INSERT IGNORE INTO ms_negara (kode_negara, nama_negara, kelompok_negara) VALUES
 ('YE', 'YEMEN', 'Timur Tengah'),
 ('YT', 'MAYOTTE', 'Lainnya'),
 ('ZA', 'SOUTH AFRICA', 'Lainnya'),
-('ZM', 'ZAMBIA', 'Lainnya');
+('ZM', 'ZAMBIA', 'Lainnya'),
+('LI', 'LIECHTENSTEIN', 'Uni Eropa');
