@@ -91,12 +91,15 @@ try {
     switch ($uri) {
         case '/':
         case '/dashboard':
+            guard($session, ['explore.view'], $vars);
             $view = 'dashboard';
             break;
         case '/data':
+            guard($session, ['data.view', 'exim.view'], $vars);
             $view = 'raw_exim';
             break;
         case '/data/export':
+            guard($session, ['data.view', 'exim.view'], $vars);
             @set_time_limit(600);
             $api = $session->api();
             $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
@@ -107,31 +110,42 @@ try {
             }
             exit;
         case '/komoditas':
+            guard($session, ['explore.commodity'], $vars);
             $view = 'komoditas';
             break;
         case '/negara':
+            guard($session, ['explore.country'], $vars);
             $view = 'negara';
             break;
         case '/provinsi':
+            guard($session, ['explore.country'], $vars);
             $view = 'provinsi';
             break;
         case '/compare':
-            $view = 'compare';
+        case '/perbandingan':
+            guard($session, ['explore.comparison'], $vars);
+            $view = $uri === '/compare' ? 'compare' : 'perbandingan';
             break;
         case '/potensi':
+            guard($session, ['explore.opportunity'], $vars);
             $view = 'potensi';
             break;
         case '/kompetitor':
+            guard($session, ['explore.competition'], $vars);
             $view = 'kompetitor';
             break;
         case '/trademap':
+            guard($session, ['trademap.view'], $vars);
             $view = 'trademap';
             break;
         case '/asisten':
+            guard($session, ['ai.use'], $vars);
             $view = 'asisten';
             break;
         case '/laporan':
+            guard($session, ['report.view'], $vars);
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                guard($session, ['report.generate_ppt'], $vars);
                 try {
                     $api = $session->api();
                     [$st, $body] = $api->post('/api/report/generate_ppt', [
@@ -156,6 +170,7 @@ try {
             $view = 'laporan';
             break;
         case '/laporan/download':
+            guard($session, ['report.view'], $vars);
             $api = $session->api();
             [$st, $blob, $ctype] = $api->getRaw('/api/report/download?job_id=' . urlencode((string) ($_GET['job_id'] ?? '')));
             if ($st !== 200 || $blob === '') {
@@ -169,8 +184,101 @@ try {
             header('Content-Length: ' . strlen($blob));
             echo $blob;
             exit;
-        case '/perbandingan':
-            $view = 'perbandingan';
+        case '/data-bps':
+            guard($session, ['data.update_bps_export', 'data.update_bps_import'], $vars);
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                @set_time_limit(300);
+                $files = [];
+                foreach (['ekspor', 'impor'] as $key) {
+                    if (!empty($_FILES[$key]['tmp_name']) && is_uploaded_file($_FILES[$key]['tmp_name'])) {
+                        $files[$key] = $_FILES[$key];
+                    }
+                }
+                if (!$files) {
+                    redirect('/data-bps?err=' . urlencode('Pilih minimal satu file BPS (.xlsx).'));
+                }
+                try {
+                    [$st, $body] = $session->api()->postMultipart(
+                        '/api/data/bps/upload',
+                        ['force' => isset($_POST['force']) ? '1' : ''],
+                        $files,
+                        180
+                    );
+                    if ($st !== 200 && $st !== 202) {
+                        $msg = is_array($body) ? ($body['error'] ?? 'gagal memulai update BPS') : 'gagal memulai update BPS';
+                        redirect('/data-bps?err=' . urlencode((string) $msg));
+                    }
+                    $job = is_array($body) ? (string) ($body['job_id'] ?? '') : '';
+                    redirect('/data-bps?ok=1&job=' . urlencode($job));
+                } catch (Throwable $e) {
+                    redirect('/data-bps?err=' . urlencode($e->getMessage()));
+                }
+            }
+            $view = 'data_bps';
+            break;
+        case '/data-bps/status':
+            guard($session, ['data.update_bps_export', 'data.update_bps_import'], $vars);
+            header('Content-Type: application/json; charset=utf-8');
+            $jid = (int) ($_GET['job'] ?? 0);
+            if ($jid < 1) {
+                http_response_code(400);
+                echo json_encode(['error' => 'job tidak valid']);
+                exit;
+            }
+            try {
+                [$st, $body] = $session->api()->get('/api/data/bps/jobs/' . $jid);
+                http_response_code($st ?: 502);
+                echo json_encode($body);
+            } catch (Throwable $e) {
+                http_response_code(502);
+                echo json_encode(['error' => $e->getMessage()]);
+            }
+            exit;
+        case '/akun':
+            guard($session, ['admin.users'], $vars);
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $action = (string) ($_POST['action'] ?? '');
+                $api = $session->api();
+                try {
+                    if ($action === 'create') {
+                        [$st, $body] = $api->post('/api/admin/users', [
+                            'nama' => (string) ($_POST['nama'] ?? ''),
+                            'email' => (string) ($_POST['email'] ?? ''),
+                            'password' => (string) ($_POST['password'] ?? ''),
+                            'role' => (string) ($_POST['role'] ?? ''),
+                        ]);
+                    } elseif ($action === 'update') {
+                        $uid = (int) ($_POST['id'] ?? 0);
+                        [$st, $body] = $api->request('PUT', '/api/admin/users/' . $uid, [
+                            'nama' => (string) ($_POST['nama'] ?? ''),
+                            'email' => (string) ($_POST['email'] ?? ''),
+                            'role' => (string) ($_POST['role'] ?? ''),
+                        ]);
+                    } elseif ($action === 'reset_password') {
+                        $uid = (int) ($_POST['id'] ?? 0);
+                        [$st, $body] = $api->post('/api/admin/users/' . $uid . '/reset-password', [
+                            'password' => (string) ($_POST['password'] ?? ''),
+                        ]);
+                    } elseif ($action === 'toggle') {
+                        $uid = (int) ($_POST['id'] ?? 0);
+                        $active = (string) ($_POST['is_active'] ?? '0') === '1';
+                        [$st, $body] = $api->request('PUT', '/api/admin/users/' . $uid, [
+                            'is_active' => $active,
+                        ]);
+                    } else {
+                        $st = 400;
+                        $body = ['error' => 'aksi tidak dikenal'];
+                    }
+                    if ($st !== 200 && $st !== 201) {
+                        $msg = is_array($body) ? ($body['error'] ?? 'gagal memproses akun') : 'gagal memproses akun';
+                        redirect('/akun?err=' . urlencode((string) $msg));
+                    }
+                    redirect('/akun?ok=' . urlencode($action === 'create' ? 'Akun berhasil dibuat.' : 'Perubahan berhasil disimpan.'));
+                } catch (Throwable $e) {
+                    redirect('/akun?err=' . urlencode($e->getMessage()));
+                }
+            }
+            $view = 'akun';
             break;
         default:
             http_response_code(404);
@@ -181,6 +289,16 @@ try {
 } catch (Throwable $e) {
     http_response_code(500);
     render_view('error', ['config' => $config, 'message' => $e->getMessage()]);
+}
+
+/** Tolak akses bila tidak punya salah satu permission; render halaman 403. */
+function guard(Session $session, array $permissions, array $vars): void
+{
+    if (!$session->hasAnyPermission($permissions)) {
+        http_response_code(403);
+        render_view('403', $vars);
+        exit;
+    }
 }
 
 function render_view(string $name, array $vars): void

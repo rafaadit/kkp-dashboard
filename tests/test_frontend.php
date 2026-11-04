@@ -82,10 +82,19 @@ foreach ([
     '/data?limit=5' => '<h1>Data RAW EXIM</h1>',
     '/data?exim=impor&limit=2&status=needs_validation' => 'needs_validation',
     '/data?limit=1' => 'Provinsi Asal',
+    '/akun' => '<h1>Kelola Akun</h1>',
+    '/data-bps' => '<h1>Update Data BPS</h1>',
 ] as $path => $needle) {
     [$c, $body] = http('GET', "$base$path", null, $cookiefn);
     check("GET $path -> 200 & konten", $c === 200 && str_contains($body, $needle), "$c " . (str_contains($body, $needle) ? '' : 'konten tak ada'));
 }
+[$c, $body] = http('GET', "$base/akun", null, $cookiefn);
+check('header menampilkan role Super Admin', str_contains($body, 'role-badge role-admin') && str_contains($body, 'Super Admin'), 'role badge tidak ada');
+check('menu Kelola Akun tampil untuk admin', str_contains($body, 'href="/akun"') && str_contains($body, 'Kelola Akun'), 'menu admin tidak ada');
+check('form buat akun tersedia', str_contains($body, 'name="action" value="create"'), 'form create tidak ada');
+[$c, $body] = http('GET', "$base/data-bps", null, $cookiefn);
+check('halaman BPS punya form upload', str_contains($body, 'enctype="multipart/form-data"') && str_contains($body, 'name="ekspor"'), 'form upload tidak ada');
+check('halaman BPS tampilkan periode terakhir', str_contains($body, 'Periode terakhir'), 'ringkasan periode tidak ada');
 [$c, $body] = http('GET', "$base/data?limit=5", null, $cookiefn);
 check('data menampilkan total baris', str_contains($body, 'Total') && str_contains($body, 'baris'), 'no total');
 

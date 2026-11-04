@@ -112,6 +112,50 @@ final class ApiClient
         return $this->request('POST', $path, $payload);
     }
 
+    /**
+     * POST multipart/form-data (unggah file).
+     *
+     * @param array<string,string> $fields
+     * @param array<string,array{name:string,tmp_name:string,type?:string}> $files
+     * @return array{0:int, 1:mixed} [status, body]
+     */
+    public function postMultipart(string $path, array $fields = [], array $files = [], int $timeout = 120): array
+    {
+        $url = $this->baseUrl . $path;
+        $ch = curl_init($url);
+        $headers = ['Accept: application/json'];
+        if ($this->token) {
+            $headers[] = 'Authorization: Bearer ' . $this->token;
+        }
+        $body = $fields;
+        foreach ($files as $key => $file) {
+            if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+                continue;
+            }
+            $body[$key] = new \CURLFile(
+                $file['tmp_name'],
+                $file['type'] ?? 'application/octet-stream',
+                $file['name'] ?? basename($file['tmp_name'])
+            );
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+        $resp = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $err = curl_error($ch);
+        if ($resp === false) {
+            throw new \RuntimeException("API tidak terjangkau: $err");
+        }
+        $decoded = json_decode($resp, true);
+        return [$status, $decoded === null ? $resp : $decoded];
+    }
+
     /** Ambil respons biner (untuk download file), return [status, blob, contentType]. */
     public function getRaw(string $path): array
     {

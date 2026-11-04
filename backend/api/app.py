@@ -12,6 +12,8 @@ Endpoint (JSON):
     GET /api/explore/perbandingan     Perbandingan 2 rentang periode (nilai, pertumbuhan)
     GET /api/explore/kelompok         Big 4 kode_kelompok ekspor (verifikasi vs PPT)
     GET /api/data/raw_exim            Browse baris raw_exim (pagination + filter)
+    GET /api/admin/users              Kelola akun (khusus admin.users)
+    POST /api/data/bps/upload         Update BPS periode baru (background job)
 
 Common query params:
     exim           ekspor|impor            (default ekspor)
@@ -44,6 +46,8 @@ from backend.api.auth import auth_bp  # noqa: E402
 from backend.api.trademap import trademap_bp  # noqa: E402
 from backend.api.report import report_bp  # noqa: E402
 from backend.api.ai import ai_bp  # noqa: E402
+from backend.api.admin import admin_bp  # noqa: E402
+from backend.api.bps import bps_bp  # noqa: E402
 from backend.api.helpers import ApiError  # noqa: E402
 
 API_VERSION = "1.0.0"
@@ -72,6 +76,8 @@ def create_app():
     app.register_blueprint(trademap_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(ai_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(bps_bp)
 
     @app.errorhandler(ApiError)
     def handle_apierror(err):

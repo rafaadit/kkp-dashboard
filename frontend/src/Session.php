@@ -83,7 +83,7 @@ final class Session
             return true;
         }
         try {
-            [$status] = $this->api->get('/api/auth/me');
+            [$status, $body] = $this->api->get('/api/auth/me');
         } catch (\Throwable $e) {
             return true;
         }
@@ -91,6 +91,10 @@ final class Session
             return false;
         }
         if ($status === 200) {
+            if (is_array($body) && isset($body['user']) && is_array($body['user'])) {
+                // Segarkan role/permission agar perubahan dari admin langsung terpakai.
+                $_SESSION['user'] = $body['user'];
+            }
             $_SESSION['token_checked'] = time();
         }
         return true;
@@ -127,5 +131,47 @@ final class Session
             return true;
         }
         return in_array($kode, $u['permissions'] ?? [], true);
+    }
+
+    /** True bila punya minimal salah satu permission. */
+    public function hasAnyPermission(array $kodes): bool
+    {
+        foreach ($kodes as $kode) {
+            if ($this->hasPermission((string) $kode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function role(): string
+    {
+        return (string) ($this->user()['role'] ?? '');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role() === 'super_admin' || $this->hasPermission('admin.users');
+    }
+
+    public function roleLabel(): string
+    {
+        return match ($this->role()) {
+            'super_admin' => 'Super Admin',
+            'pegawai' => 'Pegawai',
+            'user' => 'User',
+            default => ucfirst($this->role() ?: 'Tamu'),
+        };
+    }
+
+    /** Kelas CSS badge role (dipakai header). */
+    public function roleClass(): string
+    {
+        return match ($this->role()) {
+            'super_admin' => 'role-admin',
+            'pegawai' => 'role-pegawai',
+            'user' => 'role-user',
+            default => 'role-guest',
+        };
     }
 }

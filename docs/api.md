@@ -87,6 +87,38 @@ di `backend/api/helpers.py`).
 | `POST /api/report/generate_ppt` | `report.generate_ppt` | generate PPT |
 | `GET /api/report/download?job_id=N` | `report.view` | unduh .pptx |
 | `POST /api/ai/ask` | `ai.use` | tanya-jawab data EXIM |
+| `GET /api/admin/roles` | `admin.users` | daftar role + jumlah permission |
+| `GET /api/admin/users` | `admin.users` | daftar akun (`q`, `role`, `active`, `page`, `limit`) |
+| `GET /api/admin/users/<id>` | `admin.users` | detail akun + permission efektif |
+| `POST /api/admin/users` | `admin.users` | buat akun `{nama,email,password,role}` |
+| `PUT /api/admin/users/<id>` | `admin.users` | ubah `nama/email/role/is_active` |
+| `POST /api/admin/users/<id>/reset-password` | `admin.users` | reset password + cabut token |
+| `GET /api/admin/audit` | `admin.users` | audit log terbaru |
+| `GET /api/data/bps/summary` | `data.view`/`exim.view`/update BPS | periode terakhir + jumlah baris |
+| `GET /api/data/bps/uploads` | `data.view`/`exim.view`/update BPS | riwayat file BPS |
+| `GET /api/data/bps/jobs` | `data.view`/`jobs.view` | riwayat job update BPS |
+| `GET /api/data/bps/jobs/<id>` | `data.view`/`jobs.view` | status + log job (polling) |
+| `POST /api/data/bps/upload` | `data.update_bps_export` / `data.update_bps_import` | multipart `ekspor`/`impor` `.xlsx`, opsional `force` |
+| `POST /api/data/bps/jobs/<id>/cancel` | `jobs.run` | batalkan job `PENDING` |
+
+### Admin akun
+
+- Semua aksi tulis dicatat ke `audit_logs` (action `admin.user.*`).
+- Guard: akun tidak bisa menurunkan role/menonaktifkan dirinya sendiri, dan
+  sistem menolak bila aksi tersebut menghilangkan super_admin aktif terakhir.
+- Menonaktifkan akun / reset password otomatis mencabut seluruh token aktif
+  (`app_user_tokens.revoked_at`), sehingga sesi berjalan langsung berakhir.
+- Password di-hash bcrypt 12 rounds; respons tidak pernah memuat
+  `password_hash`.
+
+### Update BPS (background)
+
+`POST /api/data/bps/upload` menyimpan file ke `data/bps_uploads/`, membuat
+`automation_jobs` (`job_type='bps_update'`, status `PENDING`), lalu menjalankan
+`database/scripts/update_bps.py` sebagai subprocess. Hanya satu job update BPS
+boleh berjalan pada satu waktu (selain itu `409`). Pantau lewat
+`GET /api/data/bps/jobs/<id>`.
+
 
 Header `Authorization: Bearer <token>` (atau query `?token=`). Detail:
 `docs/frontend.md` (auth), `docs/report_ppt.md`, `docs/ai.md`.

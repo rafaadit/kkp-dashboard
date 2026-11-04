@@ -44,6 +44,36 @@ Semua master mapping 100%: 635 HS, 208 negara, 38 provinsi, 199 pelabuhan, 54 pe
    (grain unique), tanpa duplikat.
 4. **PROCESS** — set `bps_upload.status='processed'`.
 
+## Update via dashboard (RBAC)
+
+Pegawai/super_admin dapat mengunggah file BPS periode baru dari halaman
+`/data-bps`. Alur background:
+
+```
+POST /api/data/bps/upload (multipart ekspor/impor)
+  -> data/bps_uploads/<file>.xlsx
+  -> automation_jobs (job_type='bps_update')
+  -> database/scripts/update_bps.py --job-id N --ekspor ... [--impor ...]
+       1. deteksi (tahun, bulan) di file; buat ms_period yang belum ada
+       2. etl_bps.ingest_file + transform_fact + reconcile
+       3. hapus & generate ulang raw_exim HANYA untuk periode yang
+          benar-benar mendapat baris fact baru (file BPS biasanya kumulatif)
+       4. catat log ke automation_job_logs + status job
+```
+
+Menjalankan wrapper secara manual (mis. untuk debugging):
+
+```bash
+python3 database/scripts/update_bps.py --job-id 12 \
+    --ekspor data/bps_uploads/file_ekspor.xlsx \
+    --impor  data/bps_uploads/file_impor.xlsx
+```
+
+Catatan: wrapper berfokus pada **periode baru**. Mengunggah ulang file lama
+dengan nilai yang direvisi belum menghapus fact lama; file kumulatif hanya
+menambah periode yang belum ada (grain unik `bps_export`/`bps_import` mencegah
+duplikasi baris identik).
+
 ## Test
 
 ```bash

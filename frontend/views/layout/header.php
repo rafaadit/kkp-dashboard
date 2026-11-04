@@ -35,9 +35,13 @@ $nav = [
     ['href' => '/', 'label' => 'Beranda', 'on' => in_array($active, ['/', '/dashboard'], true)],
 ];
 $analisis = ['/komoditas', '/negara', '/provinsi', '/potensi', '/kompetitor', '/trademap'];
-$laporan = ['/laporan', '/data', '/asisten'];
+$laporan = ['/laporan', '/data', '/asisten', '/data-bps'];
 $initial = mb_strtoupper(mb_substr(trim((string) ($user['nama'] ?? $user['email'] ?? 'U')), 0, 1));
 $exim_label = $exim_side === 'impor' ? 'Indeks Impor' : 'Indeks Ekspor';
+$canUpdateBps = $session !== null && $session->hasAnyPermission(['data.update_bps_export', 'data.update_bps_import']);
+$isAdmin = $session !== null && $session->isAdmin();
+$roleLabel = $session !== null ? $session->roleLabel() : '';
+$roleClass = $session !== null ? $session->roleClass() : 'role-guest';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -88,12 +92,21 @@ $exim_label = $exim_side === 'impor' ? 'Indeks Impor' : 'Indeks Ekspor';
         <div class="nav-drop-menu">
           <a href="/laporan"><div class="mi-title">Laporan PPT</div><div class="mi-sub">Infografis eksekutif bulanan</div></a>
           <a href="/data"><div class="mi-title">Data RAW EXIM</div><div class="mi-sub">Data mentah BPS &amp; Bea Cukai</div></a>
+          <?php if ($canUpdateBps): ?>
+          <a href="/data-bps"><div class="mi-title">Update Data BPS</div><div class="mi-sub">Unggah periode BPS terbaru</div></a>
+          <?php endif; ?>
           <a href="/asisten"><div class="mi-title">Asisten AI</div><div class="mi-sub">Tanya jawab data EXIM</div></a>
         </div>
       </div>
     </nav>
 
     <div class="nav-actions">
+      <?php if ($isAdmin): ?>
+      <a class="btn nav-admin <?= $active === '/akun' ? 'on' : ''; ?>" href="/akun" title="Kelola Akun" aria-label="Kelola Akun">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-admin-text">Kelola Akun</span>
+      </a>
+      <?php endif; ?>
       <div class="nav-search">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="komSearch" type="search" placeholder="Cari komoditas…" autocomplete="off" aria-label="Cari komoditas">
@@ -109,7 +122,7 @@ $exim_label = $exim_side === 'impor' ? 'Indeks Impor' : 'Indeks Ekspor';
         <span class="avatar" aria-hidden="true"><?= KKP\View::e($initial); ?></span>
         <span class="nav-user-meta">
           <span class="nav-user-name"><?= KKP\View::e($user['nama'] ?? $user['email'] ?? ''); ?></span>
-          <span class="nav-user-role"><?= KKP\View::e($user['role'] ?? ''); ?></span>
+          <span class="nav-user-role role-badge <?= KKP\View::e($roleClass); ?>"><?= KKP\View::e($roleLabel); ?></span>
         </span>
         <a class="btn nav-logout" href="/logout">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>

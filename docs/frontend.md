@@ -15,7 +15,8 @@ frontend/
   views/
     layout/header.php, footer.php
     login.php, dashboard.php, komoditas.php, negara.php,
-    perbandingan.php, raw_exim.php, 404.php, error.php
+    perbandingan.php, raw_exim.php, data_bps.php, akun.php,
+    403.php, 404.php, error.php
   .env.local
 ```
 
@@ -25,11 +26,15 @@ frontend/
 # 1. Backend API (Flask :8000)
 .venv/bin/python backend/api/app.py --port 8000
 
-# 2. Frontend (PHP :8080)
-php -S 127.0.0.1:8080 -t frontend/public frontend/public/index.php
+# 2. Frontend (PHP :8080) — batas unggah dinaikkan untuk file BPS
+php -d upload_max_filesize=256M -d post_max_size=260M \
+    -S 127.0.0.1:8080 -t frontend/public frontend/public/index.php
 
 
 Buka http://127.0.0.1:8080 → login dengan akun admin.
+`upload_max_filesize` default PHP hanya 2 MB; tanpa flag di atas, unggah file
+BPS akan gagal (halaman `/data-bps` menampilkan peringatan bila batas terlalu
+kecil).
 
 ## User awal
 
@@ -94,12 +99,37 @@ Header: `Authorization: Bearer <token>`.
 - `/asisten` Asisten AI: tanya-jawab dari DB; prompt seperti
   "tampilkan data ekspor udang ke Amerika Serikat 2025" mengembalikan tabel
   data mentah (filter periode/komoditas/negara dideteksi dari teks).
+- `/data-bps` **Update Data BPS** (pegawai/super_admin): unggah file BPS
+  ekspor/impor `.xlsx` periode baru, lihat ringkasan periode terakhir, progres
+  job (polling `/data-bps/status?job=N`), riwayat job, dan riwayat file.
+  Proses dijalankan background oleh `database/scripts/update_bps.py`.
+- `/akun` **Kelola Akun** (super_admin): buat akun, ubah nama/email/role,
+  reset password, aktif/nonaktifkan akun, serta matriks role. Aksi tulis
+  dicatat di `audit_logs`.
 - `/login`, `/logout`.
+- `403` — halaman "Akses Dibatasi" dirender router bila role tidak punya izin.
+
+## Role & guard halaman
+
+| Role | Kemampuan utama |
+|---|---|
+| `user` | Lihat semua halaman analitik, browse/export RAW EXIM, baca laporan, AI |
+| `pegawai` | Semua `user` + update BPS periode baru, generate PPT, proses TradeMap |
+| `super_admin` | Semua fitur + kelola akun/role (`/akun`) |
+
+Router (`frontend/public/index.php`) memanggil `guard()` sebelum render:
+`/akun` butuh `admin.users`; `/data-bps` butuh salah satu
+`data.update_bps_export` / `data.update_bps_import`; halaman analitik butuh
+permission `explore.*`, `trademap.view`, `report.view`, `ai.use`, atau
+`data.view`. Backend tetap menegakkan permission yang sama (`require_perm`),
+jadi guard frontend hanya untuk UX. Header menyembunyikan menu yang tidak
+sesuai dan menampilkan badge role.
+
 
 ## Test
 
 - `php tests/test_frontend.php` — smoke test end-to-end (wajib API :8000 running).
-- `.venv/bin/python tests/test_auth.py tests/test_api.py` — unit test backend.
+- `.venv/bin/python tests/test_auth.py tests/test_api.py tests/test_rbac.py` — unit test backend, termasuk matriks izin 3 role dan guard admin.
 
 Catatan: token sesi disimpan cookie; setiap permintaan ditambahkan
 `Authorization` oleh `ApiClient`. Semua angka diformat dengan
@@ -112,6 +142,9 @@ Catatan: token sesi disimpan cookie; setiap permintaan ditambahkan
   Beranda/Analisis/Banding Negara/Perbandingan/Laporan dengan dropdown hover,
   pencarian komoditas dengan dropdown hasil, chip user + logout, tombol
   hamburger untuk mobile.
+- Chip user menampilkan badge role (`User` / `Pegawai` / `Super Admin`);
+  menu **Kelola Akun** hanya muncul untuk admin dan **Update Data BPS** hanya
+  untuk pegawai/admin.
 - Ticker di bawah nav menampilkan 3 komoditas teratas (harga USD/kg + share)
   dari `/api/explore/komoditas`; data diambil paralel bersama daftar komoditas
   lewat `ApiClient::getMany()` (curl_multi).
