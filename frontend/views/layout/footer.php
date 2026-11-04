@@ -29,7 +29,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('.nav-drop > .nav-link'), function (btn) {
         btn.addEventListener('click', function (e) {
             var drop = btn.parentNode;
-            if (window.matchMedia('(max-width: 900px)').matches) {
+            if (window.matchMedia('(max-width: 1040px)').matches) {
                 e.preventDefault();
                 drop.classList.toggle('open');
             }
