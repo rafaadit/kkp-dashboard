@@ -51,3 +51,46 @@ SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
                AND INDEX_NAME = 'idx_raw_exim_eksim_negara_komoditas');
 SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_eksim_negara_komoditas (exim_type, kode_negara, komoditas_5_2026, tahun, bulan, nil_usd)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Agregasi top komoditas / provinsi / pelabuhan butuh Group By + SUM langsung
+-- dari index (covering), supaya tidak menyentuh 200+ ribu baris tabel.
+
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'raw_exim'
+                AND INDEX_NAME = 'idx_raw_exim_top_komoditas');
+SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_top_komoditas (exim_type, komoditas_5_2026, komoditas_2_2017, kode_hs_2022, vol_kg, nil_usd)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'raw_exim'
+                AND INDEX_NAME = 'idx_raw_exim_top_provinsi');
+SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_top_provinsi (exim_type, provinsi_asal, kode_hs_2022, vol_kg, nil_usd, setara_segar)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'raw_exim'
+                AND INDEX_NAME = 'idx_raw_exim_top_pelabuhan');
+SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_top_pelabuhan (exim_type, provinsi_pelabuhan, kode_hs_2022, vol_kg, nil_usd, setara_segar)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'raw_exim'
+                AND INDEX_NAME = 'idx_raw_exim_compare_cover');
+SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_compare_cover (exim_type, kode_negara, tahun, bulan, negara, kelompok_negara, kode_hs_2022, vol_kg, nil_usd, setara_segar)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- country_compare: COUNT(DISTINCT kode_hs_2022) per grup butuh kode_hs
+-- berurutan setelah kode_negara/negara/kelompok, dan top komoditas butuh
+-- vol_kg + nil_usd di dalam index yang sama.
+
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'raw_exim'
+                AND INDEX_NAME = 'idx_raw_exim_compare_hs');
+SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_compare_hs (exim_type, kode_negara, negara, kelompok_negara, kode_hs_2022, vol_kg, nil_usd, setara_segar)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'raw_exim'
+                AND INDEX_NAME = 'idx_raw_exim_compare_komoditas');
+SET @sql := IF(@idx = 0, 'ALTER TABLE raw_exim ADD INDEX idx_raw_exim_compare_komoditas (exim_type, kode_negara, komoditas_5_2026, vol_kg, nil_usd)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

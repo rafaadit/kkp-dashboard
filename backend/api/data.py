@@ -111,7 +111,7 @@ def raw_exim():
         offset = (page - 1) * limit
         cur.execute(
             f"SELECT {', '.join(_BROWSE_COLS)} FROM raw_exim r "
-            f"JOIN ms_hscode h ON h.kode_hs = r.kode_hs_2022 "
+            f"STRAIGHT_JOIN ms_hscode h ON h.kode_hs = r.kode_hs_2022 "
             f"WHERE {w} ORDER BY r.tahun DESC, r.bulan DESC, r.id DESC "
             "LIMIT %s OFFSET %s",
             params + [limit, offset],
@@ -162,7 +162,7 @@ def raw_exim_xlsx():
         cur = conn.cursor()
         cur.execute(
             f"SELECT {', '.join(_BROWSE_COLS)} FROM raw_exim r "
-            f"JOIN ms_hscode h ON h.kode_hs = r.kode_hs_2022 "
+            f"STRAIGHT_JOIN ms_hscode h ON h.kode_hs = r.kode_hs_2022 "
             f"WHERE {w} ORDER BY r.tahun DESC, r.bulan DESC, r.id DESC",
             params,
         )

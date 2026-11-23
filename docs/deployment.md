@@ -70,6 +70,16 @@ mysql -u <user> -p <db_name> < database/migrations/0004_raw_exim_perf_index.sql
 Migration ini idempoten dan sudah diterapkan pada database `magang_tarbhak`.
 Untuk instalasi baru, index juga sudah masuk `database/schema.sql`.
 
+Index tambahan untuk `top komoditas/provinsi/pelabuhan`, `country_compare`,
+serta browse `raw_exim` sudah termasuk dalam migration yang sama. Pada data
+`magang_tarbhak` (±260 ribu baris), waktu tempuh endpoint turun dari
+~21–127 detik menjadi ~0,5–4 detik per endpoint. Browse data mentah juga
+memakai `STRAIGHT_JOIN` agar optimizer tidak memulai dari `ms_hscode`
+(rencana salah yang menyebabkan filesort seluruh tabel).
+
+Jika menambah periode baru dan web kembali berat, jalankan ulang migration
+di atas (aman/idempoten), lalu cek `EXPLAIN` pada query yang lambat.
+
 ## Konfigurasi
 
 `frontend/.env.local` (di server, **jangan** di-commit):
