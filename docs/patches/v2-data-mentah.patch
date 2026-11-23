@@ -1,0 +1,67 @@
+diff --git a/frontend/public/index.php b/frontend/public/index.php
+index 6ae7348..503895a 100644
+--- a/frontend/public/index.php
++++ b/frontend/public/index.php
+@@ -113,11 +113,15 @@ try {
+             guard($session, ['explore.view'], $vars);
+             $view = 'dashboard';
+             break;
++        // '/data' bentrok dengan folder fisik 'data' di deploy v2 (Apache 403),
++        // jadi sediakan alias '/data-mentah' yang dipakai navbar.
+         case '/data':
++        case '/data-mentah':
+             guard($session, ['data.view', 'exim.view'], $vars);
+             $view = 'raw_exim';
+             break;
+         case '/data/export':
++        case '/data-mentah/export':
+             guard($session, ['data.view', 'exim.view'], $vars);
+             @set_time_limit(600);
+             $api = $session->api();
+diff --git a/frontend/views/403.php b/frontend/views/403.php
+index 078ba21..55ddfbe 100644
+--- a/frontend/views/403.php
++++ b/frontend/views/403.php
+@@ -6,6 +6,6 @@
+   <p class="muted">Peran akun Anda (<?= \KKP\View::e($session?->roleLabel() ?? 'Tamu'); ?>) tidak memiliki izin untuk membuka halaman ini.</p>
+   <div class="forbidden-actions">
+     <a class="btn btn-primary" href="/">Kembali ke Beranda</a>
+-    <a class="btn" href="/data">Lihat Data</a>
++    <a class="btn" href="/data-mentah">Lihat Data</a>
+   </div>
+ </section>
+diff --git a/frontend/views/layout/header.php b/frontend/views/layout/header.php
+index 655bc90..480156b 100644
+--- a/frontend/views/layout/header.php
++++ b/frontend/views/layout/header.php
+@@ -35,7 +35,7 @@ $nav = [
+     ['href' => '/', 'label' => 'Beranda', 'on' => in_array($active, ['/', '/dashboard'], true)],
+ ];
+ $analisis = ['/komoditas', '/negara', '/provinsi', '/potensi', '/kompetitor', '/trademap'];
+-$laporan = ['/laporan', '/data', '/asisten', '/data-bps'];
++$laporan = ['/laporan', '/data', '/data-mentah', '/asisten', '/data-bps'];
+ $initial = mb_strtoupper(mb_substr(trim((string) ($user['nama'] ?? $user['email'] ?? 'U')), 0, 1));
+ $exim_label = $exim_side === 'impor' ? 'Indeks Impor' : 'Indeks Ekspor';
+ $canUpdateBps = $session !== null && $session->hasAnyPermission(['data.update_bps_export', 'data.update_bps_import']);
+@@ -91,7 +91,7 @@ $roleClass = $session !== null ? $session->roleClass() : 'role-guest';
+         </button>
+         <div class="nav-drop-menu">
+           <a href="/laporan"><div class="mi-title">Laporan PPT</div><div class="mi-sub">Infografis eksekutif bulanan</div></a>
+-          <a href="/data"><div class="mi-title">Data RAW EXIM</div><div class="mi-sub">Data mentah BPS &amp; Bea Cukai</div></a>
++          <a href="/data-mentah"><div class="mi-title">Data RAW EXIM</div><div class="mi-sub">Data mentah BPS &amp; Bea Cukai</div></a>
+           <?php if ($canUpdateBps): ?>
+           <a href="/data-bps"><div class="mi-title">Update Data BPS</div><div class="mi-sub">Unggah periode BPS terbaru</div></a>
+           <?php endif; ?>
+diff --git a/frontend/views/raw_exim.php b/frontend/views/raw_exim.php
+index a9225cc..0f150c8 100644
+--- a/frontend/views/raw_exim.php
++++ b/frontend/views/raw_exim.php
+@@ -40,7 +40,7 @@ try {
+     if ($status) { $export_qs['status'] = $status; }
+     if ($q) { $export_qs['komoditas'] = $q; }
+     ?>
+-    <a class="btn" href="/data/export?<?= http_build_query($export_qs); ?>">Export Excel (.xlsx)</a>
++    <a class="btn" href="/data-mentah/export?<?= http_build_query($export_qs); ?>">Export Excel (.xlsx)</a>
+ </form>
+ <?php if ($d): $total = (int) $d['total']; $pages = (int) $d['pages']; ?>
+ <p class="muted">Total <?= \KKP\View::num($total); ?> baris · halaman <?= $page; ?>/<?= \KKP\View::num($pages); ?></p>
