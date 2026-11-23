@@ -44,8 +44,8 @@ backend/api/bps.py                         (jika belum sesuai commit terbaru)
 ```
 
 > Cyberduck: aktifkan **Show Hidden Files** (`View → Show Hidden Files`) agar
-> `.htaccess` ikut terkirim. Setelah upload, cek `https://.../tarbhak/frontend/public/.htaccess`
-> harus **403**, bukan 404 — kalau 404 berarti file belum ter-upload.
+> `.htaccess` ikut terkirim. Cek keberadaannya lewat SFTP — lewat HTTP dotfile
+> biasanya tetap 403 meski file belum ada, jadi status 403 bukan bukti upload.
 
 Site harus mengizinkan `.htaccess` (`AllowOverride All`). Jika hosting
 mengabaikan `.htaccess`, minta admin server menambahkan rewrite:
