@@ -8,6 +8,23 @@ Aplikasi terdiri dari dua proses:
    Frontend memanggilnya lewat cURL server-side, jadi **tidak perlu** port 8000
    terbuka ke internet selama Flask berjalan di server yang sama.
 
+## URL produksi saat ini
+
+Aplikasi yang dipakai magang berada di folder baru yang ditambahkan atasan:
+
+```
+https://magang.pdspkp.id/tarbhak/v2/login
+```
+
+Cek cepat: `/tarbhak/v2/login` → 200, `/` → 302 ke `.../tarbhak/v2/login`,
+`assets/app.css` → 200, dan `/tarbhak/v2/.env.local` → 403. Prefix `/tarbhak/v2`
+terdeteksi otomatis dari posisi folder `public`, jadi **tidak perlu** mengisi
+`BASE_URL` di `.env.local` (`tests/test_base_url.php` sudah meng-cover kasus ini).
+
+> Catatan: salinan di server v2 punya token CSRF `_csrf` pada form login.
+> Versi CSRF ini belum ada di repo, jadi jangan menimpa folder v2 dengan upload
+> lama tanpa konfirmasi atasan.
+
 ## Kenapa halaman sebelumnya 404 / redirect ke `/login`
 
 Router PHP memakai path root (`/login`, `/data`, `/assets/app.css`). Saat aplikasi

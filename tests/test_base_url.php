@@ -37,6 +37,12 @@ check('subdirectory base normal', $sub->baseUrl === '/tarbhak/frontend/public', 
 check('subdirectory url /', $sub->url('/') === '/tarbhak/frontend/public/', $sub->url('/'));
 check('subdirectory url /login', $sub->url('/login') === '/tarbhak/frontend/public/login', $sub->url('/login'));
 
+// Deploy live: folder versi baru milik atasan di /tarbhak/v2.
+$v2 = Config::load('', '/tarbhak/v2');
+check('v2 base normal', $v2->baseUrl === '/tarbhak/v2', $v2->baseUrl);
+check('v2 url /', $v2->url('/') === '/tarbhak/v2/', $v2->url('/'));
+check('v2 url /login', $v2->url('/login') === '/tarbhak/v2/login', $v2->url('/login'));
+
 View::setBaseUrl($sub->baseUrl);
 $method = new ReflectionMethod(View::class, 'prefixUrls');
 if (PHP_VERSION_ID < 80100) {
