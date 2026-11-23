@@ -25,6 +25,22 @@ terdeteksi otomatis dari posisi folder `public`, jadi **tidak perlu** mengisi
 > Versi CSRF ini belum ada di repo, jadi jangan menimpa folder v2 dengan upload
 > lama tanpa konfirmasi atasan.
 
+### Kenapa `/tarbhak/v2/data` 403 Forbidden
+
+Bukan masalah RBAC. Di v2 ada **folder fisik bernama `data`** yang diblokir
+Apache (semua `/data/*` langsung 403 sebelum request sempat di-rewrite ke
+`index.php`). Dengan demikian router tidak pernah melihat route `/data`.
+
+Solusi di kode: route `/data` tetap ada, tapi navbar/export memakai alias
+**`/data-mentah`** (dan `/data-mentah/export`) yang tidak bentrok dengan folder
+tersebut. Setelah `index.php`, `views/layout/header.php`, `views/403.php`, dan
+`views/raw_exim.php` di-upload ke v2, halaman Data bisa dibuka lewat menu
+**Laporan → Data RAW EXIM**.
+
+Kalau ingin URL `/data` juga hidup, atasan perlu mengganti nama folder fisik
+`data` (mis. jadi `storage`) atau menghapus aturan deny/RewriteEngine Off di
+`v2/data/.htaccess`.
+
 ## Kenapa halaman sebelumnya 404 / redirect ke `/login`
 
 Router PHP memakai path root (`/login`, `/data`, `/assets/app.css`). Saat aplikasi

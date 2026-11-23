@@ -40,7 +40,7 @@ try {
     if ($status) { $export_qs['status'] = $status; }
     if ($q) { $export_qs['komoditas'] = $q; }
     ?>
-    <a class="btn" href="/data/export?<?= http_build_query($export_qs); ?>">Export Excel (.xlsx)</a>
+    <a class="btn" href="/data-mentah/export?<?= http_build_query($export_qs); ?>">Export Excel (.xlsx)</a>
 </form>
 <?php if ($d): $total = (int) $d['total']; $pages = (int) $d['pages']; ?>
 <p class="muted">Total <?= \KKP\View::num($total); ?> baris · halaman <?= $page; ?>/<?= \KKP\View::num($pages); ?></p>

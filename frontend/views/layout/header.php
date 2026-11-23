@@ -35,7 +35,7 @@ $nav = [
     ['href' => '/', 'label' => 'Beranda', 'on' => in_array($active, ['/', '/dashboard'], true)],
 ];
 $analisis = ['/komoditas', '/negara', '/provinsi', '/potensi', '/kompetitor', '/trademap'];
-$laporan = ['/laporan', '/data', '/asisten', '/data-bps'];
+$laporan = ['/laporan', '/data', '/data-mentah', '/asisten', '/data-bps'];
 $initial = mb_strtoupper(mb_substr(trim((string) ($user['nama'] ?? $user['email'] ?? 'U')), 0, 1));
 $exim_label = $exim_side === 'impor' ? 'Indeks Impor' : 'Indeks Ekspor';
 $canUpdateBps = $session !== null && $session->hasAnyPermission(['data.update_bps_export', 'data.update_bps_import']);
@@ -91,7 +91,7 @@ $roleClass = $session !== null ? $session->roleClass() : 'role-guest';
         </button>
         <div class="nav-drop-menu">
           <a href="/laporan"><div class="mi-title">Laporan PPT</div><div class="mi-sub">Infografis eksekutif bulanan</div></a>
-          <a href="/data"><div class="mi-title">Data RAW EXIM</div><div class="mi-sub">Data mentah BPS &amp; Bea Cukai</div></a>
+          <a href="/data-mentah"><div class="mi-title">Data RAW EXIM</div><div class="mi-sub">Data mentah BPS &amp; Bea Cukai</div></a>
           <?php if ($canUpdateBps): ?>
           <a href="/data-bps"><div class="mi-title">Update Data BPS</div><div class="mi-sub">Unggah periode BPS terbaru</div></a>
           <?php endif; ?>

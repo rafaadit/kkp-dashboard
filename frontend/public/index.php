@@ -113,11 +113,15 @@ try {
             guard($session, ['explore.view'], $vars);
             $view = 'dashboard';
             break;
+        // '/data' bentrok dengan folder fisik 'data' di deploy v2 (Apache 403),
+        // jadi sediakan alias '/data-mentah' yang dipakai navbar.
         case '/data':
+        case '/data-mentah':
             guard($session, ['data.view', 'exim.view'], $vars);
             $view = 'raw_exim';
             break;
         case '/data/export':
+        case '/data-mentah/export':
             guard($session, ['data.view', 'exim.view'], $vars);
             @set_time_limit(600);
             $api = $session->api();

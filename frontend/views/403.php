@@ -6,6 +6,6 @@
   <p class="muted">Peran akun Anda (<?= \KKP\View::e($session?->roleLabel() ?? 'Tamu'); ?>) tidak memiliki izin untuk membuka halaman ini.</p>
   <div class="forbidden-actions">
     <a class="btn btn-primary" href="/">Kembali ke Beranda</a>
-    <a class="btn" href="/data">Lihat Data</a>
+    <a class="btn" href="/data-mentah">Lihat Data</a>
   </div>
 </section>
