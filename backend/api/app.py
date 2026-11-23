@@ -102,11 +102,13 @@ def main():
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--port", type=int, default=int(os.environ.get("APP_PORT", "8000")))
+    ap.add_argument("--host", default=os.environ.get("APP_HOST", "127.0.0.1"),
+                    help="Alamat bind. Pakai 0.0.0.0 hanya bila API perlu diakses dari host lain.")
     args = ap.parse_args()
     app = create_app()
-    print(f"[api] KKP EXIM API v{API_VERSION} di 127.0.0.1:{args.port}")
+    print(f"[api] KKP EXIM API v{API_VERSION} di {args.host}:{args.port}")
     # access log membantu debugging; cukup concise
-    app.run(host="127.0.0.1", port=args.port, debug=(os.environ.get("APP_DEBUG") == "true"))
+    app.run(host=args.host, port=args.port, debug=(os.environ.get("APP_DEBUG") == "true"))
 
 
 if __name__ == "__main__":

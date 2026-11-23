@@ -12,6 +12,10 @@ REST API Python (Flask) yang menyajikan data ekspor/impor dari `raw_exim`
 curl http://127.0.0.1:8000/health
 ```
 
+Default bind adalah `127.0.0.1`. Untuk mengakses dari host lain, gunakan
+`--host 0.0.0.0` (atau env `APP_HOST=0.0.0.0`) — sebaiknya di belakang
+reverse proxy/firewall.
+
 Pengujian: `.venv/bin/python tests/test_api.py` (test client, tanpa server berdiri).
 
 ## Endpoint

@@ -1,0 +1,18 @@
+# KKP EXIM Platform — frontend/public
+# Arahkan semua request bukan file ke router index.php agar route seperti
+# /login, /data-bps, dll. tetap bekerja saat aplikasi dipasang di subdirectory.
+DirectoryIndex index.php
+Options -Indexes
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>

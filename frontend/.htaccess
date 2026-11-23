@@ -1,0 +1,13 @@
+# Jangan pernah mengekspos konfigurasi frontend (.env.local berisi API_BASE_URL).
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^\.">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>

@@ -9,6 +9,23 @@ final class View
 {
     private static string $viewDir = BASE_PATH . '/views';
 
+    /** Prefix URL aplikasi; diisi bootstrap dari Config::$baseUrl. */
+    private static string $baseUrl = '';
+
+    public static function setBaseUrl(string $base): void
+    {
+        self::$baseUrl = rtrim($base, '/');
+    }
+
+    /** URL internal aplikasi (sudah termasuk prefix base). */
+    public static function url(string $path = '/'): string
+    {
+        if ($path === '' || $path === '/') {
+            return self::$baseUrl === '' ? '/' : self::$baseUrl . '/';
+        }
+        return self::$baseUrl . '/' . ltrim($path, '/');
+    }
+
     public static function render(string $name, array $vars): void
     {
         $file = self::$viewDir . "/{$name}.php";
@@ -19,9 +36,17 @@ final class View
         }
         $vars['__name__'] = $name;
         extract($vars, EXTR_SKIP);
-        require self::$viewDir . '/layout/header.php';
-        require $file;
-        require self::$viewDir . '/layout/footer.php';
+
+        ob_start();
+        try {
+            require self::$viewDir . '/layout/header.php';
+            require $file;
+            require self::$viewDir . '/layout/footer.php';
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            throw $e;
+        }
+        echo self::prefixUrls((string) ob_get_clean());
     }
 
     public static function renderPartial(string $name, array $vars): void
@@ -32,6 +57,34 @@ final class View
         }
         extract($vars, EXTR_SKIP);
         require $file;
+    }
+
+    /**
+     * Beri prefix base pada URL internal yang ditulis absolut (href/src/action
+     * dan string fetch/location di JS). Dengan begitu seluruh view tetap memakai
+     * path root ('/login', '/assets/app.css', ...) baik saat di-deploy di root
+     * maupun di subdirectory seperti /tarbhak/frontend/public/.
+     */
+    private static function prefixUrls(string $html): string
+    {
+        if (self::$baseUrl === '' || $html === '') {
+            return $html;
+        }
+        $base = self::$baseUrl;
+
+        $html = preg_replace_callback(
+            '/\b(href|src|action|poster)\s*=\s*"(\/[^"]*)"/i',
+            static fn(array $m): string => $m[1] . '="' . $base . $m[2] . '"',
+            $html
+        ) ?? $html;
+
+        $html = preg_replace_callback(
+            '/(\bfetch\s*\(\s*|\.href\s*=\s*|\.location\s*=\s*|window\.open\s*\(\s*)([\'"])(\/[^\'"]*)\2/i',
+            static fn(array $m): string => $m[1] . $m[2] . $base . $m[3] . $m[2],
+            $html
+        ) ?? $html;
+
+        return $html;
     }
 
     public static function e(mixed $v): string

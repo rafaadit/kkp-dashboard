@@ -129,7 +129,9 @@ sesuai dan menampilkan badge role.
 ## Test
 
 - `php tests/test_frontend.php` — smoke test end-to-end (wajib API :8000 running).
+- `php tests/test_base_url.php` — regression test prefix URL (root vs subdirectory).
 - `.venv/bin/python tests/test_auth.py tests/test_api.py tests/test_rbac.py` — unit test backend, termasuk matriks izin 3 role dan guard admin.
+- `.venv/bin/python tests/test_etl.py` — verifikasi data BPS + integritas FK.
 
 Catatan: token sesi disimpan cookie; setiap permintaan ditambahkan
 `Authorization` oleh `ApiClient`. Semua angka diformat dengan

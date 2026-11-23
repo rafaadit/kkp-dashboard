@@ -16,19 +16,34 @@ require_once BASE_PATH . '/src/View.php';
 
 use KKP\Config;
 use KKP\Session;
+use KKP\View;
 
-$config = Config::load(BASE_PATH . '/.env.local');
+// Deteksi otomatis prefix URL dari lokasi index.php. Bisa ditimpa lewat
+// BASE_URL di frontend/.env.local bila aplikasi dipasang lewat alias/proxy.
+$config = Config::load(BASE_PATH . '/.env.local', detect_base_url());
+View::setBaseUrl($config->baseUrl);
 $session = new Session($config);
 
-$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if ($config->baseUrl !== '') {
+    $base = $config->baseUrl;
+    if ($uri === $base || $uri === $base . '/') {
+        $uri = '/';
+    } elseif (strncmp($uri, $base . '/', strlen($base) + 1) === 0) {
+        $uri = substr($uri, strlen($base));
+    }
+}
 $uri = rtrim($uri, '/');
 if ($uri === '') {
     $uri = '/';
 }
 
 // Passthrough aset statis bila server tanpa docroot (php -S ... index.php).
-$static = PUBLIC_PATH . $uri;
-if ($uri !== '/' && is_file($static)) {
+$publicRoot = realpath(PUBLIC_PATH) ?: PUBLIC_PATH;
+$static = realpath($publicRoot . $uri);
+$staticExt = $static ? strtolower(pathinfo($static, PATHINFO_EXTENSION)) : '';
+if ($uri !== '/' && $staticExt !== 'php' && $static && $static !== $publicRoot
+    && str_starts_with($static, $publicRoot . DIRECTORY_SEPARATOR) && is_file($static)) {
     $mime = [
         'css' => 'text/css',
         'js' => 'application/javascript',
@@ -57,7 +72,11 @@ try {
         $error = null;
         $notice = isset($_GET['expired']) ? 'Sesi Anda berakhir. Silakan masuk kembali.' : null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $error = $session->login($_POST['email'] ?? '', $_POST['password'] ?? '');
+            try {
+                $error = $session->login($_POST['email'] ?? '', $_POST['password'] ?? '');
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
             if ($error === null) {
                 redirect('/');
             }
@@ -327,6 +346,33 @@ function render_view(string $name, array $vars): void
 
 function redirect(string $to): void
 {
-    header('Location: ' . $to);
+    header('Location: ' . \KKP\View::url($to));
     exit;
+}
+
+/**
+ * Prefix URL aplikasi (mis. /tarbhak/frontend/public).
+ * Diutamakan posisi folder public relatif terhadap DOCUMENT_ROOT — lebih
+ * stabil daripada SCRIPT_NAME karena sama untuk request statis maupun rewrite.
+ */
+function detect_base_url(): string
+{
+    $docRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+    $publicRoot = realpath(PUBLIC_PATH);
+    if ($docRoot !== false && $publicRoot !== false) {
+        if ($docRoot === $publicRoot) {
+            return '';
+        }
+        if (str_starts_with($publicRoot, $docRoot . DIRECTORY_SEPARATOR)) {
+            return str_replace('\\', '/', substr($publicRoot, strlen($docRoot)));
+        }
+    }
+
+    // Fallback untuk CLI / server tanpa DOCUMENT_ROOT.
+    $script = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+    $dir = str_replace('\\', '/', dirname($script));
+    if ($dir === '' || $dir === '.' || $dir === '/') {
+        return '';
+    }
+    return rtrim($dir, '/');
 }

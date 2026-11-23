@@ -610,15 +610,15 @@ body.has-waves { background-color: var(--bg); }
 }
 .hero-slide.is-active { opacity: 1; transform: scale(1); }
 .hero-slide-fishing {
-    background-image: url('/assets/back-kapal-1.jpg');
+    background-image: url('back-kapal-1.jpg');
     background-position: center 35%;
 }
 .hero-slide-fleet {
-    background-image: url('/assets/back-kapal-2.jpeg');
+    background-image: url('back-kapal-2.jpeg');
     background-position: center 58%;
 }
 .hero-slide-catch {
-    background-image: url('/assets/hero-fishing-boats.jpg');
+    background-image: url('hero-fishing-boats.jpg');
     background-position: center 45%;
 }
 .hero-slider::before {

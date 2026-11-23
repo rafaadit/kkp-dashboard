@@ -132,8 +132,22 @@ def main():
     r = c.get("/api/explore/potensi?exim=ekspor", headers=H)
     check("potensi 200", r.status_code == 200)
     d = r.get_json()
-    check("potensi ref_periode", d["ref_periode"] == {"mulai": "2026-02", "akhir": "2026-07"},
-          str(d["ref_periode"]))
+    # Jendela 6 bulan terakhir mengikuti periode terbaru di DB (boleh bertambah).
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT tahun, bulan FROM raw_exim WHERE exim_type='ekspor' "
+                    "ORDER BY tahun DESC, bulan DESC LIMIT 1")
+        latest = cur.fetchone()
+    finally:
+        conn.close()
+    pos = int(latest["tahun"]) * 12 + int(latest["bulan"]) - 1
+    start, end = pos - 5, pos
+    expected = {
+        "mulai": f"{start // 12:04d}-{start % 12 + 1:02d}",
+        "akhir": f"{end // 12:04d}-{end % 12 + 1:02d}",
+    }
+    check("potensi ref_periode", d["ref_periode"] == expected, str(d["ref_periode"]))
     check("potensi top_market > 0", len(d["top_market"]) > 0)
     check("potensi momentum naik semua > 0",
           all(m["pertumbuhan_persen"] > 0 for m in d["momentum"]))
